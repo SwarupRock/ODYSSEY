@@ -10,11 +10,22 @@ const $ = (id) => document.getElementById(id);
 
 /* speaker nameplate colors — the cast is color-coded like a playbill */
 const SPEAKER_COLORS = {
-  ODYSSEUS: "#e6c069", NARRATOR: "#cdbfa0", POLYPHEMUS: "#d96a3a",
-  AGAMEMNON: "#c9973f", CIRCE: "#d48fb8", PENELOPE: "#9fc4d4",
-  SIRENS: "#d48fb8", TIRESIAS: "#9ab8c4", EURYLOCHUS: "#b8a06a",
-  AEOLUS: "#a8d0c8", ANTINOUS: "#c96a5a", CREW: "#b0a488",
-  SOLDIER: "#b0a488", GHOST: "#8fb0b8",
+  ODYSSEUS: "#ffdf80",
+  NARRATOR: "#f4ebd9",
+  POLYPHEMUS: "#ff6e38",
+  AGAMEMNON: "#f7be48",
+  CIRCE: "#fcaee0",
+  PENELOPE: "#a8e0f8",
+  SIRENS: "#fcaee0",
+  TIRESIAS: "#b8dcf0",
+  ACHILLES: "#ffaa88",
+  SUITOR: "#ff7b6b",
+  EURYLOCHUS: "#e2ca88",
+  AEOLUS: "#b8f4e6",
+  ANTINOUS: "#ff7b6b",
+  CREW: "#d8cfbd",
+  SOLDIER: "#d8cfbd",
+  GHOST: "#b8e4ec",
 };
 
 /* ---------------- dialogue ---------------- */
@@ -42,11 +53,11 @@ export const Dialogue = {
     const line = this.lines[this.idx];
     const sp = $("dlg-speaker");
     sp.textContent = line.who || "";
-    sp.style.display = line.who ? "" : "none";
+    sp.style.display = line.who ? "inline-block" : "none";
     const col = SPEAKER_COLORS[(line.who || "").toUpperCase()] ||
       SPEAKER_COLORS[Object.keys(SPEAKER_COLORS).find((k) => (line.who || "").toUpperCase().includes(k))];
     sp.style.color = col || "var(--bronze-bright)";
-    sp.style.borderColor = col || "var(--bronze)";
+    sp.style.borderColor = col || "var(--bronze-bright)";
     $("dlg-text").textContent = "";
     // voice over for the line (skips silent narration-less lines)
     if (line.text && line.text.length > 8) Voice.say(line.who, line.text);
