@@ -15,6 +15,8 @@ Thumbs.db
 *.tmp
 .vscode/
 
-# Node dependencies (if any)
+# Node & Python dependencies
 node_modules/
 npm-debug.log*
+.venv/
+__pycache__/

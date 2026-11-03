@@ -1,11 +1,7 @@
 /* ============================================================
-   ODYSSEY — js/voice.js — voice overs for the cast (natural build)
-   Still zero assets, but tuned so it doesn't read as "robot":
-   - prefers the device's best engines (Google > Natural > default)
-   - speaks in sentence chunks with tiny prosody jitter per chunk
-     (flat single utterances are the #1 "AI" tell)
-   - ducks the music while a line plays, restores after
-   - per-character gender pools + pitch/rate profiles as before
+   ODYSSEY — js/voice.js — voice overs for the cast
+   Supports pre-recorded studio audio clips for all dialogue lines,
+   with seamless offline fallback to AndroidTTS (native) or Web Speech API.
    ============================================================ */
 
 const PROFILES = {
@@ -15,6 +11,8 @@ const PROFILES = {
   AGAMEMNON:  { pitch: 0.50, rate: 0.88, gender: "m", slot: 3 },
   EURYLOCHUS: { pitch: 1.10, rate: 1.04, gender: "m", slot: 4 },
   ANTINOUS:   { pitch: 0.65, rate: 0.96, gender: "m", slot: 5 },
+  SUITOR:     { pitch: 0.65, rate: 0.96, gender: "m", slot: 5 },
+  ACHILLES:   { pitch: 0.75, rate: 0.90, gender: "m", slot: 6 },
   CREW:       { pitch: 0.95, rate: 1.06, gender: "m", slot: 6 },
   SOLDIER:    { pitch: 0.88, rate: 1.00, gender: "m", slot: 7 },
   TIRESIAS:   { pitch: 0.55, rate: 0.82, gender: "m", slot: 8 },
@@ -24,6 +22,14 @@ const PROFILES = {
   SIRENS:     { pitch: 1.70, rate: 0.90, gender: "f", slot: 3 },
   AEOLUS:     { pitch: 1.25, rate: 1.05, gender: "f", slot: 4 },
 };
+
+function hashText(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = (((h << 5) + h) + str.charCodeAt(i)) & 0xffffffff;
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
 
 const FEM_HINTS = ["female", "woman", "zira", "hazel", "susan", "samantha", "victoria", "karen", "moira", "tessa", "fiona", "serena", "allison", "ava", "nicky", "google uk english female", "google us english", "aria", "jenny", "michelle", "salli", "joanna", "kendra", "kimberly", "ivy", "emma", "amy", "sonia", "libby", "natasha"];
 const MASC_HINTS = ["male", "man", "david", "daniel", "mark", "guy", "alex", "fred", "aaron", "arthur", "oliver", "thomas", "george", "ryan", "eric", "brian", "james", "christopher", "rishi"];
@@ -35,10 +41,9 @@ function guessGender(v) {
   return "?";
 }
 
-/* quality ranking — natural-network voices first */
 function voiceQuality(v) {
   const n = (v.name || "").toLowerCase();
-  if (n.includes("google")) return 5;                    // Android's best
+  if (n.includes("google")) return 5;
   if (/\bnatural\b/.test(n)) return 4;
   if (n.includes("enhanced") || n.includes("premium")) return 3;
   if (v.lang && /^en/i.test(v.lang)) return 2;
@@ -54,7 +59,6 @@ function numWords(n) {
   return String(n);
 }
 
-/* split into speakable chunks: sentences, then long clauses */
 function chunk(text) {
   const out = [];
   for (const s of text.replace(/—/g, ", ").split(/(?<=[.!?…])\s+/)) {
@@ -73,8 +77,9 @@ function chunk(text) {
 }
 
 export const Voice = {
-  supported: typeof window !== "undefined" && "speechSynthesis" in window,
+  supported: true,
   enabled: true,
+  _currentAudio: null,
   _voices: [],
   _voice: null,
   _lastKey: "",
@@ -82,16 +87,17 @@ export const Voice = {
   _active: 0,
 
   init() {
-    if (!this.supported) return;
     try { this.enabled = localStorage.getItem("odyssey-voice") !== "off"; } catch {}
-    this._pickAll();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = () => this._pickAll();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      this._pickAll();
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => this._pickAll();
+      }
     }
   },
 
   _pickAll() {
-    if (!this.supported) return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const vs = window.speechSynthesis.getVoices();
     if (!vs.length) return;
     this._voices = vs.slice().sort((a, b) => voiceQuality(b) - voiceQuality(a));
@@ -121,16 +127,12 @@ export const Voice = {
     if (!on) this.stop();
   },
 
-  /** speak one dialogue line with natural chunked delivery */
+  /** speak one dialogue line: audio file preferred, TTS as fallback */
   say(who, text) {
-    if (!this.supported || !this.enabled) return;
-    const synth = window.speechSynthesis;
-    if (!synth) return;
+    if (!this.enabled || !text) return;
     this.stop();
-    if (!this._voices.length) this._pickAll();
 
     const key = (who || "") + "|" + text;
-    if (key === this._lastKey && synth.speaking) return;
     this._lastKey = key;
 
     const W = (who || "NARRATOR").toUpperCase();
@@ -139,20 +141,80 @@ export const Voice = {
       PROFILES[Object.keys(PROFILES).find((k) => W.includes(k))] ||
       { pitch: 1, rate: 0.95, gender: "m", slot: 0 };
 
+    // 1. Try recorded studio audio clip
+    const hash = hashText(((who || "NARRATOR") + ":" + text.trim()).toLowerCase());
+    const audioSrc = `audio/voices/${hash}.mp3`;
+
+    let audio = new Audio();
+    audio.src = audioSrc;
+    this._currentAudio = audio;
+    this._active++;
+    try { this._duck(true); } catch {}
+
+    let played = false;
+    audio.onended = () => {
+      if (this._currentAudio === audio) {
+        this._currentAudio = null;
+        this._active = Math.max(0, this._active - 1);
+        if (this._active === 0) { try { this._duck(false); } catch {} }
+      }
+    };
+
+    const fallback = () => {
+      if (this._currentAudio === audio) {
+        this._currentAudio = null;
+        this._saySynth(who, text, prof);
+      }
+    };
+
+    audio.onerror = () => {
+      if (!played) fallback();
+    };
+
+    const p = audio.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        played = true;
+      }).catch(() => {
+        fallback();
+      });
+    }
+  },
+
+  /** fallback synthesizer (Native AndroidTTS or Web Speech) */
+  _saySynth(who, text, prof) {
+    // A. Native Android TTS bridge
+    if (typeof window !== "undefined" && window.AndroidTTS && window.AndroidTTS.speak) {
+      try {
+        window.AndroidTTS.speak(text, prof.pitch || 1.0, prof.rate || 1.0);
+        return;
+      } catch (e) {
+        console.warn("AndroidTTS error:", e);
+      }
+    }
+
+    // B. Web Speech API
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      this._active = Math.max(0, this._active - 1);
+      if (this._active === 0) { try { this._duck(false); } catch {} }
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    if (!this._voices.length) this._pickAll();
+
     const v = this._voiceFor(prof);
-    // tidy spoken text: digits to words, em-dash pauses
     const clean = text
       .replace(/\b(\d{1,3})\b/g, (m) => numWords(+m))
       .replace(/—/g, " — ");
 
     const parts = chunk(clean);
-    if (!parts.length) return;
+    if (!parts.length) {
+      this._active = Math.max(0, this._active - 1);
+      if (this._active === 0) { try { this._duck(false); } catch {} }
+      return;
+    }
 
-    this._active++;
-    try { this._duck(true); } catch {}
-
-    // queue chunks; each gets slight rate/pitch jitter so consecutive
-    // phrases don't machine-gun at identical prosody
     for (let i = 0; i < parts.length; i++) {
       const u = new SpeechSynthesisUtterance(parts[i]);
       if (v) { u.voice = v; u.lang = v.lang; }
@@ -168,6 +230,7 @@ export const Voice = {
   },
 
   _pump() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const synth = window.speechSynthesis;
     const next = this._queue[0];
     if (!next) {
@@ -176,21 +239,40 @@ export const Voice = {
       return;
     }
     this._queue.shift();
-    next.onend = () => { if (this._queue.length) this._pump(); else { this._active = Math.max(0, this._active - 1); if (this._active === 0) { try { this._duck(false); } catch {} } } };
+    next.onend = () => {
+      if (this._queue.length) this._pump();
+      else {
+        this._active = Math.max(0, this._active - 1);
+        if (this._active === 0) { try { this._duck(false); } catch {} }
+      }
+    };
     next.onerror = next.onend;
     try { synth.speak(next); } catch { next.onend(); }
   },
 
   stop() {
-    if (!this.supported) return;
     this._lastKey = "";
+    if (this._currentAudio) {
+      try {
+        this._currentAudio.pause();
+        this._currentAudio.currentTime = 0;
+      } catch {}
+      this._currentAudio = null;
+    }
+    if (typeof window !== "undefined" && window.AndroidTTS && window.AndroidTTS.stop) {
+      try { window.AndroidTTS.stop(); } catch {}
+    }
     this._queue = [];
-    try { window.speechSynthesis.cancel(); } catch {}
-    if (this._active) { this._active = 0; try { this._duck(false); } catch {} }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
+    if (this._active) {
+      this._active = 0;
+      try { this._duck(false); } catch {}
+    }
   },
 
   _duck(on) {
-    // optional integration — audio module may not be loaded in probes
     import("./audio.js").then(({ Audio }) => { if (Audio.duck) Audio.duck(on); }).catch(() => {});
   },
 };

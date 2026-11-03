@@ -6,7 +6,7 @@
    - fetch: cache-first, refresh the copy in the background
    Version bump the CACHE name whenever you ship new files.        */
 
-const CACHE = "odyssey-v9";
+const CACHE = "odyssey-v10";
 const FILES = [
   "/index.html",
   "/styles.css",

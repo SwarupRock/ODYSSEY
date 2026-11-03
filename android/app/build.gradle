@@ -17,7 +17,7 @@ android {
     // The whole game ships as compressed assets inside the APK; the
     // WebView never touches the network, so keep everything intact.
     androidResources {
-        noCompress 'woff2', 'html', 'js', 'css', 'json', 'webmanifest', 'png'
+        noCompress 'woff2', 'html', 'js', 'css', 'json', 'webmanifest', 'png', 'mp3'
     }
 
     buildTypes {
