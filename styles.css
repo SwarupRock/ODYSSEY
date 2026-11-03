@@ -521,16 +521,6 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 
 .title-hint { margin-top: 22px; font-size: 12px; letter-spacing: 0.1em; color: rgba(205,191,160,0.5); }
 
-.title-dev {
-  margin-top: 10px;
-  font-family: var(--font-title);
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(201,151,63,0.45);
-  user-select: none;
-}
-
 /* ---- Map & Armory ---- */
 #screen-map, #screen-armory, #screen-end {
   background: radial-gradient(ellipse at 50% 30%, #2e1d0e 0%, var(--terra-black) 75%);
@@ -940,12 +930,73 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 #btn-voice.muted { color: rgba(205,191,160,0.3); text-decoration: line-through; }
 
 /* ============================================================
-   SMALL SCREENS / DESKTOP FIXES
+   RESPONSIVE PHONE / LANDSCAPE FITTING
    ============================================================ */
-@media (max-height: 480px) {
-  .game-title { font-size: 40px; }
-  .dlg-text { min-height: 2.6em; }
+@media (max-height: 520px) {
+  .title-panel {
+    padding: 12px 18px;
+    max-height: 98vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .game-title {
+    font-size: clamp(34px, 9vmin, 54px);
+    margin: 2px 0 0;
+  }
+  .game-sub {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .cc-meander {
+    margin: 4px auto;
+  }
+  .title-buttons {
+    margin-top: 8px;
+    gap: 8px 12px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 520px;
+  }
+  .title-buttons .btn-stone {
+    padding: 8px 18px;
+    font-size: 13px;
+    min-width: 130px;
+  }
+  .title-hint {
+    margin-top: 8px;
+    font-size: 11px;
+  }
+  .map-wrap {
+    max-height: 96vh;
+    padding: 14px 14px;
+  }
+  .dlg-text {
+    min-height: 2.4em;
+    font-size: clamp(14px, 2.4vmin, 17px);
+  }
+  .dlg-frame {
+    padding: 18px 18px 24px;
+  }
+  #dialogue {
+    bottom: 2%;
+    width: min(94vw, 580px);
+  }
 }
+
+@media (max-width: 600px) {
+  .title-panel {
+    width: 96vw;
+    padding: 16px 10px;
+  }
+  .title-buttons .btn-stone {
+    width: 90%;
+    max-width: 280px;
+  }
+}
+
 @media (min-width: 900px) {
   #dialogue { width: 560px; }
 }

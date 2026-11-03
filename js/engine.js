@@ -36,8 +36,8 @@ export class Engine {
   /* ---------------- sizing ---------------- */
   resize() {
     this.DPR = Math.min(window.devicePixelRatio || 1, 2);
-    this.W = window.innerWidth;
-    this.H = window.innerHeight;
+    this.W = document.documentElement.clientWidth || window.innerWidth;
+    this.H = document.documentElement.clientHeight || window.innerHeight;
     this.canvas.width = Math.floor(this.W * this.DPR);
     this.canvas.height = Math.floor(this.H * this.DPR);
     this.canvas.style.width = this.W + "px";
@@ -200,6 +200,7 @@ export class Engine {
     });
 
     window.addEventListener("resize", () => this.resize());
+    window.addEventListener("orientationchange", () => setTimeout(() => this.resize(), 120));
   }
 
   keyDown(...names) { return names.some((n) => this.keys.has(n)); }
