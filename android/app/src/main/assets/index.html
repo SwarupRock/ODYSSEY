@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#1a1008"/>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>ODYSSEY — The Long Way Home</title>
+<!-- fonts are self-hosted (see styles.css @font-face) — no external requests -->
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<!-- ============================================================
+     ODYSSEY — a story-driven action-adventure in one page.
+     Layers (back to front):
+       #game-canvas   engine render target
+       #hud           chapter-local HUD (wind meter, rhythm, HP, etc.)
+       #dialogue      narration / speech box
+       #chapter-card  pottery-panel chapter transitions
+       #screens       title / map / end screens (DOM)
+     ============================================================ -->
+
+<canvas id="game-canvas"></canvas>
+
+<!-- In-game HUD -->
+<div id="hud" class="hidden">
+  <div id="hud-chapter" class="hud-chapter-label">Prologue</div>
+  <div id="hud-health" class="hud-health hidden" aria-hidden="true"></div>
+  <div id="hud-objective" class="hud-objective hidden"></div>
+  <div id="hud-toast" class="hud-toast hidden"></div>
+</div>
+
+<!-- Chapter-local mechanic UI (wind meter / rhythm track / stealth eye) -->
+<div id="mech-ui" class="hidden"></div>
+
+<!-- Narration / dialogue -->
+<div id="dialogue" class="dialogue hidden" role="dialog" aria-live="polite">
+  <div class="dlg-frame">
+    <div class="dlg-speaker" id="dlg-speaker"></div>
+    <div class="dlg-text" id="dlg-text"></div>
+    <div class="dlg-continue" id="dlg-continue">tap to continue ▸</div>
+  </div>
+</div>
+
+<!-- Big choice buttons (e.g. reveal / secret) -->
+<div id="choices" class="hidden"></div>
+
+<!-- Chapter transition card -->
+<div id="chapter-card" class="chapter-card hidden">
+  <div class="cc-frame">
+    <div class="cc-meander"></div>
+    <div class="cc-kicker" id="cc-kicker">Chapter I</div>
+    <div class="cc-title" id="cc-title">Polyphemus's Cave</div>
+    <div class="cc-sub" id="cc-sub"></div>
+    <div class="cc-meander"></div>
+  </div>
+</div>
+
+<!-- Fade / flash overlay -->
+<div id="fade-overlay"></div>
+
+<!-- Full-screen DOM screens -->
+<div id="screens">
+  <!-- TITLE -->
+  <section id="screen-title" class="screen" style="flex-direction:column;justify-content:center;align-items:center;">
+    <div class="title-art">
+      <div class="title-sun"></div>
+      <div class="title-sea"></div>
+      <div class="title-ship">
+        <svg viewBox="0 0 120 60" width="96" height="48" aria-hidden="true">
+          <path d="M10 40 Q60 54 110 40 L98 52 Q60 60 22 52 Z" fill="#2c1a0e"/>
+          <path d="M60 40 L60 6 L88 36 Z" fill="#c96f2e"/>
+          <path d="M60 40 L60 6 L36 36 Z" fill="#a3511f"/>
+        </svg>
+      </div>
+      <div class="title-gulls"><span></span><span></span><span></span></div>
+    </div>
+    <div class="title-panel">
+      <div class="cc-meander"></div>
+      <h1 class="game-title">ODYSSEY</h1>
+      <p class="game-sub">The long way home</p>
+      <div class="cc-meander"></div>
+      <div class="title-buttons">
+        <button class="btn-stone btn-hero" id="btn-new-game">Begin the Voyage</button>
+        <button class="btn-stone hidden" id="btn-continue">Continue Voyage</button>
+        <button class="btn-stone" id="btn-chapters">Chapters</button>
+        <button class="btn-stone" id="btn-armory">⚔ Armory</button>
+        <button class="btn-stone hidden" id="btn-install">⤓ Install on this device</button>
+      </div>
+      <p class="title-hint">a 45–75 minute tale of hubris · trials · homecoming</p>
+      <p class="title-dev">Developed by Swarup D</p>
+    </div>
+  </section>
+
+  <!-- ARMORY — weapons & arrows, three tiers each -->
+  <section id="screen-armory" class="screen hidden">
+    <div class="map-wrap">
+      <div class="screen-header">
+        <button class="btn-stone btn-back-top" id="btn-armory-back-top" title="Return to Title">◂ Back</button>
+        <h2 class="map-title">The Armory</h2>
+        <div class="header-spacer"></div>
+      </div>
+      <p class="map-sub">two racks, three tiers each — bronze for the field, gold for the legend</p>
+      <div id="armory-list" class="armory-list"></div>
+      <button class="btn-stone btn-back" id="btn-armory-back">◂ Back to Title</button>
+    </div>
+  </section>
+
+  <!-- CHAPTER SELECT -->
+  <section id="screen-map" class="screen hidden">
+    <div class="map-wrap">
+      <div class="screen-header">
+        <button class="btn-stone btn-back-top" id="btn-map-back-top" title="Return to Title">◂ Back</button>
+        <h2 class="map-title">The Voyage of Odysseus</h2>
+        <div class="header-spacer"></div>
+      </div>
+      <p class="map-sub">choose a shore to return to — progress unlocks each chapter</p>
+      <div id="map-list" class="map-list"></div>
+      <button class="btn-stone btn-back" id="btn-map-back">◂ Back to Title</button>
+    </div>
+  </section>
+
+  <!-- ENDING -->
+  <section id="screen-end" class="screen hidden">
+    <div class="map-wrap end-wrap">
+      <div id="end-art" class="end-art"></div>
+      <div class="cc-meander"></div>
+      <h2 class="map-title" id="end-title">Homecoming</h2>
+      <div class="cc-meander"></div>
+      <p class="end-body" id="end-body"></p>
+      <div class="end-stats" id="end-stats"></div>
+      <div class="title-buttons">
+        <button class="btn-stone" id="btn-end-map">Voyage Map</button>
+        <button class="btn-stone" id="btn-end-again">Sail Again</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Audio / voice / home toggles -->
+<button id="btn-home" class="btn-audio hidden" title="Return to Title / Home" style="right:114px">
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" style="display:block">
+    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+  </svg>
+</button>
+<button id="btn-voice" class="btn-audio" title="Voice overs on/off" style="right:64px">🗣</button>
+<button id="btn-audio" class="btn-audio" title="Sound on/off">♪</button>
+
+<script type="module" src="js/main.js"></script>
+<script>
+  /* ---- PWA plumbing (must never break the game) ---- */
+  let __installEvt = null;
+  addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    __installEvt = e;
+    const b = document.getElementById("btn-install");
+    if (b) b.classList.remove("hidden");
+  });
+  document.getElementById("btn-install").addEventListener("click", async () => {
+    if (!__installEvt) return;
+    __installEvt.prompt();
+    __installEvt = null;
+    document.getElementById("btn-install").classList.add("hidden");
+  });
+  // service worker = offline play; needs a secure context (https or localhost)
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname)) && !location.hostname.endsWith("appassets.androidplatform.net")) {
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+  // Android app (WebView): hardware back = same as tapping.
+  // Returns true when the press was consumed inside the game.
+  window.odysseyBackPress = function () {
+    const dlg = document.getElementById("dialogue");
+    if (dlg && !dlg.classList.contains("hidden")) {
+      dlg.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      return true;
+    }
+    const armory = document.getElementById("screen-armory");
+    if (armory && !armory.classList.contains("hidden")) {
+      document.getElementById("btn-armory-back").click();
+      return true;
+    }
+    const map = document.getElementById("screen-map");
+    if (map && !map.classList.contains("hidden")) {
+      document.getElementById("btn-map-back").click();
+      return true;
+    }
+    const btnHome = document.getElementById("btn-home");
+    if (btnHome && !btnHome.classList.contains("hidden")) {
+      btnHome.click();
+      return true;
+    }
+    return false; // let the double-press-to-exit happen
+  };
+</script>
+</body>
+</html>

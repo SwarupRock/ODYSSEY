@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.odyssey.game'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.odyssey.game"
+        minSdk 24            // Android 7.0 — everything Chrome WebView needs
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    // The whole game ships as compressed assets inside the APK; the
+    // WebView never touches the network, so keep everything intact.
+    androidResources {
+        noCompress 'woff2', 'html', 'js', 'css', 'json', 'webmanifest', 'png'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // self-signed debug key so "Build APKs" works with zero setup;
+            // replace with your own keystore before publishing to Play.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.11.0'
+
+    // androidx still ships kotlin-stdlib-jdk7/8 artifacts that clash with
+    // the merged kotlin-stdlib; pin everything to one version (official fix).
+    constraints {
+        implementation('org.jetbrains.kotlin:kotlin-stdlib:1.8.22')
+        implementation('org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22')
+        implementation('org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22')
+    }
+}
