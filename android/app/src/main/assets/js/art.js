@@ -327,9 +327,65 @@ export function drawOdysseus(ctx, x, y, s, dir, t, battle = false, moving = fals
       ctx.closePath(); ctx.fill();
       ctx.restore();
     } else {
-      // sword at hip (upgrades glint brighter)
-      ctx.strokeStyle = tier >= 2 ? PAL.bronzeBright : PAL.bronze; ctx.lineWidth = 3 * s;
-      ctx.beginPath(); ctx.moveTo(6 * s, y - 44 * s); ctx.lineTo(16 * s, y - 34 * s); ctx.stroke();
+      // VISIBLE SWORD IN HAND — warrior ready stance
+      ctx.save();
+      const armSway = moving ? Math.sin(t * 10) * 0.08 : Math.sin(t * 2) * 0.04;
+      const hx = 10 * s, hy = y - 53 * s;
+
+      // Upper arm / shoulder
+      ctx.strokeStyle = tint; ctx.lineWidth = 5.2 * s; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(2 * s, y - 62 * s); ctx.lineTo(hx, hy); ctx.stroke();
+
+      // Forearm reaching forward
+      ctx.strokeStyle = skin; ctx.lineWidth = 4.2 * s;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + 9 * s, hy + 4 * s); ctx.stroke();
+
+      // Hand knuckle grip
+      ctx.fillStyle = skin;
+      ctx.beginPath(); ctx.arc(hx + 9 * s, hy + 4 * s, 2.6 * s, 0, Math.PI * 2); ctx.fill();
+
+      // Sword held in hand, angled forward-down in alert ready guard
+      ctx.translate(hx + 9 * s, hy + 4 * s);
+      ctx.rotate(0.52 + armSway);
+
+      // Bronze pommel
+      ctx.fillStyle = swTier >= 3 ? "#fff4c2" : PAL.bronzeBright;
+      ctx.beginPath(); ctx.arc(-4 * s, 0, 2.3 * s, 0, Math.PI * 2); ctx.fill();
+
+      // Dark leather grip
+      ctx.fillStyle = "#2a1a10";
+      ctx.fillRect(-2 * s, -1.8 * s, 6.2 * s, 3.6 * s);
+
+      // Bronze crossguard
+      ctx.fillStyle = swTier >= 3 ? PAL.gold : PAL.bronze;
+      ctx.fillRect(4.2 * s, -5.5 * s, 2.8 * s, 11 * s);
+
+      // Greek leaf-shaped xiphos blade
+      ctx.fillStyle = bladeCol;
+      ctx.beginPath();
+      ctx.moveTo(7 * s, -3.2 * s);
+      ctx.lineTo(25 * s, -4.4 * s);
+      ctx.lineTo(33 * s, -1.8 * s);
+      ctx.lineTo(39 * s, 0); // blade tip
+      ctx.lineTo(33 * s, 1.8 * s);
+      ctx.lineTo(25 * s, 4.4 * s);
+      ctx.lineTo(7 * s, 3.2 * s);
+      ctx.closePath();
+      ctx.fill();
+
+      // Gleaming fuller spine & lit blade edge highlight
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.1 * s;
+      ctx.beginPath(); ctx.moveTo(7.5 * s, 0); ctx.lineTo(36 * s, 0); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,0.45)"; ctx.lineWidth = 0.8 * s;
+      ctx.beginPath(); ctx.moveTo(8 * s, -3.8 * s); ctx.lineTo(27 * s, -4.4 * s); ctx.stroke();
+
+      ctx.restore();
+
+      // Scabbard on hip
+      ctx.strokeStyle = "#2b1b10"; ctx.lineWidth = 3.2 * s;
+      ctx.beginPath(); ctx.moveTo(-2 * s, y - 50 * s); ctx.lineTo(-12 * s, y - 36 * s); ctx.stroke();
+      ctx.fillStyle = PAL.bronze;
+      ctx.fillRect(-13 * s, y - 36 * s, 3 * s, 3 * s);
     }
     // raised Argive bronze shield during guard / block / parry
     if (anim && anim.shield) {
@@ -756,6 +812,91 @@ export function drawPig(ctx, x, y, s, t, i = 0) {
   ctx.beginPath(); ctx.ellipse(13.5 * s, -8.5 * s, 2.2 * s, 1.6 * s, 0, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = PAL.ink; ctx.lineWidth = 1.6 * s;
   ctx.beginPath(); ctx.moveTo(9 * s, -14 * s); ctx.lineTo(8 * s, -17 * s); ctx.stroke(); // ear
+  ctx.restore();
+}
+
+/** RESTORED CREWMAN — upright Greek sailor standing proud once cured */
+export function drawCrewman(ctx, x, y, s, dir, t, variant = 0) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (dir < 0) ctx.scale(-1, 1);
+
+  const bob = Math.sin(t * 2.5 + variant) * 1.2 * s;
+  const cheer = Math.sin(t * 5 + variant) * 2.5 * s;
+  const skin = PAL.sand;
+  const tunicColors = ["#8c3b24", "#2c4866", "#9c7832"];
+  const tunic = tunicColors[variant % tunicColors.length];
+
+  // Ground shadow
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.ellipse(0, 2 * s, 13 * s, 3.5 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Legs & cross-laced sandals
+  ctx.strokeStyle = skin; ctx.lineWidth = 6 * s; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-4 * s, y - 32 * s); ctx.lineTo(-6 * s, y - 16 * s); ctx.lineTo(-5 * s, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4 * s, y - 32 * s); ctx.lineTo(6 * s, y - 16 * s); ctx.lineTo(7 * s, 0); ctx.stroke();
+  ctx.strokeStyle = "#4a2a14"; ctx.lineWidth = 1.6 * s; // sandal straps
+  ctx.beginPath(); ctx.moveTo(-6 * s, y - 8 * s); ctx.lineTo(-4 * s, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6 * s, y - 8 * s); ctx.lineTo(8 * s, 0); ctx.stroke();
+
+  // Tunic (Greek chiton)
+  ctx.fillStyle = tunic;
+  ctx.beginPath();
+  ctx.moveTo(-7 * s, y - 56 * s + bob);
+  ctx.lineTo(7 * s, y - 56 * s + bob);
+  ctx.lineTo(9 * s, y - 32 * s + bob);
+  ctx.lineTo(-9 * s, y - 32 * s + bob);
+  ctx.closePath();
+  ctx.fill();
+
+  // Leather belt & bronze buckle
+  ctx.fillStyle = "#3a2012";
+  ctx.fillRect(-8 * s, y - 40 * s + bob, 16 * s, 3.5 * s);
+  ctx.fillStyle = PAL.bronzeBright;
+  ctx.fillRect(-2 * s, y - 40 * s + bob, 4 * s, 3.5 * s);
+
+  // Torso / Neck
+  ctx.fillStyle = skin;
+  ctx.fillRect(-3 * s, y - 62 * s + bob, 6 * s, 7 * s);
+
+  // Head & Face
+  ctx.beginPath(); ctx.arc(0, y - 68 * s + bob, 7.5 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#221a12"; // dark curly hair
+  ctx.beginPath(); ctx.arc(0, y - 70 * s + bob, 8.2 * s, Math.PI * 0.8, Math.PI * 2.2); ctx.fill();
+  // Greek headband (taenia)
+  ctx.strokeStyle = PAL.bronzeBright; ctx.lineWidth = 1.6 * s;
+  ctx.beginPath(); ctx.arc(0, y - 70 * s + bob, 8 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.stroke();
+
+  // Eye catching light
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(3.5 * s, y - 68 * s + bob, 1.4 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = PAL.ink;
+  ctx.beginPath(); ctx.arc(3.8 * s, y - 68 * s + bob, 0.8 * s, 0, Math.PI * 2); ctx.fill();
+
+  // Arm gestures: raised in salute or thanking Odysseus
+  ctx.strokeStyle = skin; ctx.lineWidth = 4 * s; ctx.lineCap = "round";
+  if (variant === 0) {
+    // Polites waving joyfully
+    ctx.beginPath(); ctx.moveTo(6 * s, y - 52 * s + bob); ctx.lineTo(13 * s, y - 68 * s + cheer); ctx.stroke();
+    ctx.beginPath(); ctx.arc(13 * s, y - 68 * s + cheer, 2.2 * s, 0, Math.PI * 2); ctx.fill();
+  } else if (variant === 1) {
+    // Eurylochus hand on heart
+    ctx.beginPath(); ctx.moveTo(6 * s, y - 52 * s + bob); ctx.lineTo(1 * s, y - 48 * s + bob); ctx.stroke();
+    ctx.beginPath(); ctx.arc(1 * s, y - 48 * s + bob, 2.2 * s, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Perimedes arm raised in triumph
+    ctx.beginPath(); ctx.moveTo(6 * s, y - 52 * s + bob); ctx.lineTo(12 * s, y - 64 * s + cheer); ctx.stroke();
+    ctx.beginPath(); ctx.arc(12 * s, y - 64 * s + cheer, 2.2 * s, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Left arm at side
+  ctx.beginPath(); ctx.moveTo(-6 * s, y - 52 * s + bob); ctx.lineTo(-9 * s, y - 38 * s + bob); ctx.stroke();
+
   ctx.restore();
 }
 

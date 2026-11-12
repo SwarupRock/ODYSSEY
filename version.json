@@ -1,9 +1,9 @@
 {
-  "version": "1.2.1",
-  "build": 3,
+  "version": "1.2.2",
+  "build": 4,
   "mandatory": true,
-  "hash": "7a955395e780",
-  "notes": "Added articulated legs to Trojan hauling soldiers and raised horse atop rolling siege sled",
+  "hash": "aa0eef7e2c67",
+  "notes": "Chapter 3 overhaul: Greek marble palace & cauldron, Hermes Moly transmutation, sword drawn in hands, restored Greek crewmen",
   "baseUrl": "https://raw.githubusercontent.com/SwarupRock/ODYSSEY/main/",
   "files": [
     "audio/voices/091e5ea2.mp3",
