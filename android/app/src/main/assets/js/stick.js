@@ -28,9 +28,16 @@ export const Stick = {
         <div id="stick-base"><div id="stick-nub"></div></div>
       </div>
       <div id="action-buttons">
-        <button id="btn-bow" class="tbtn">🏹</button>
-        <button id="btn-act" class="tbtn">ACT</button>
-        <button id="btn-dodge" class="tbtn hidden">DODGE</button>
+        <div class="tbtn-arc">
+          <button id="btn-bow" class="tbtn tbtn-sm" title="Bow (B)">🏹<span>BOW</span></button>
+          <button id="btn-dodge" class="tbtn tbtn-sm" title="Dodge (C / K)">↔<span>DODGE</span></button>
+          <button id="btn-dash" class="tbtn tbtn-sm tbtn-combat" title="Dash (Shift)">⚡<span>DASH</span></button>
+          <button id="btn-block" class="tbtn tbtn-sm tbtn-combat" title="Guard / Parry (F)">🛡<span>PARRY</span></button>
+          <button id="btn-spear" class="tbtn tbtn-sm tbtn-combat" title="Spear Sweep (L)">🔱<span>SPEAR</span></button>
+          <button id="btn-spin" class="tbtn tbtn-sm tbtn-combat" title="Spin Slash (K)">🌀<span>SPIN</span></button>
+          <button id="btn-upper" class="tbtn tbtn-sm tbtn-combat" title="Uppercut (U)">⬆<span>UPPER</span></button>
+        </div>
+        <button id="btn-act" class="tbtn tbtn-main" title="Slash / Action (Space)">⚔<span>SLASH</span></button>
       </div>`;
     document.body.appendChild(wrap);
 
@@ -100,9 +107,11 @@ export const Stick = {
     // ---- buttons ----
     const press = (id, key) => {
       const el = document.getElementById(id);
+      if (!el) return;
       el.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         el.classList.add("pressed");
+        try { if (navigator.vibrate) navigator.vibrate(12); } catch {}
         const sc = this.getActionTarget();
         if (!sc) return;
         if (sc.onActionKey) sc.onActionKey(key);
@@ -121,9 +130,37 @@ export const Stick = {
     press("btn-act", " ");
     press("btn-bow", "bow");
     press("btn-dodge", "dodge");
+    press("btn-upper", "u");
+    press("btn-spin", "k");
+    press("btn-spear", "l");
+    press("btn-block", "f");
+    press("btn-dash", "shift");
 
-    // show BOW only when the hero owns one
+    // show BOW only when the hero owns one; combat cluster off by default
+    this.setCombatMode(false);
     this.refreshBow();
+  },
+
+  /** toggle combat move buttons ("uppercut", "spin", "spear", "parry", "dash") */
+  setCombatMode(on) {
+    const box = document.getElementById("action-buttons");
+    const act = document.getElementById("btn-act");
+    if (box) box.classList.toggle("combat-on", !!on);
+    if (act) act.innerHTML = on ? "⚔<span>SLASH</span>" : "ACT";
+  },
+
+  setDodgeVisible(on) {
+    const b = document.getElementById("btn-dodge");
+    if (b) b.classList.toggle("hidden", !on);
+  },
+
+  /** brief cooldown pulse on an action button */
+  cooldown(id, ms = 600) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add("cd");
+    clearTimeout(el._cdTimer);
+    el._cdTimer = setTimeout(() => el.classList.remove("cd"), ms);
   },
 
   /** hide/show the bow button from gear state (called by main on chapter start) */
@@ -133,30 +170,9 @@ export const Stick = {
     b.classList.toggle("hidden", !Gear.kit().bow.power);
   },
 
-  setDodgeVisible(on) {
-    const b = document.getElementById("btn-dodge");
-    if (b) b.classList.toggle("hidden", !on);
-  },
-
   /** screens want the pad out of the way; scenes want it back */
   setInGame(on) {
     const el = document.getElementById("touch-controls");
     if (el) el.classList.toggle("hidden", !on);
-    if (!on) this.setDodgeVisible(false);
-  },
-
-  /** reset joystick position and engine axes back to neutral */
-  reset() {
-    if (this.engine) {
-      this.engine.stickX = 0;
-      this.engine.stickY = 0;
-    }
-    const base = document.getElementById("stick-base");
-    const nub = document.getElementById("stick-nub");
-    if (base) base.classList.remove("live");
-    if (nub) nub.style.transform = "translate(0px, 0px)";
-    document.querySelectorAll("#touch-controls .tbtn.pressed").forEach((button) => {
-      button.classList.remove("pressed");
-    });
   },
 };

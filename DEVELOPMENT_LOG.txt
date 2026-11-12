@@ -96,7 +96,6 @@ Commence Phase 1 — Stabilise shared input and scene lifecycle:
 2. Add `pointer-events: none;` to `#touch-controls` when `body.dlg-open` is active in `styles.css`.
 3. Standardise `ChapterScene` base cleanup and cancellation handlers in `js/scenefw.js`.
 --------------------------------------------------
-
 ENTRY 002 — PHASE 1: STABILISE SHARED INPUT & SCENE LIFECYCLE
 
 Date: 2026-11-10
@@ -1448,4 +1447,81 @@ Android: byte parity verified; native runtime not tested or changed.
 Next recommended action:
 Await explicit review before Phase 3.2. Do not integrate stamina into the HUD,
 movement controller, combat system, or chapters without approval.
+--------------------------------------------------
+
+ENTRY 017 — TEAM INTEGRATION STAGE 3 MERGE
+
+Date: 2026-11-12
+Status: COMPLETED — PENDING FEATURE RECONCILIATION
+Development phase: Team Integration — Stage 3
+
+Objective:
+Merge the approved teammate development history into the integration branch while
+preserving the local Phase 2C movement/dodge work and Phase 3.1 standalone stamina
+foundation.
+
+Work completed:
+- Merged `origin/main` with a normal non-fast-forward merge.
+- Imported commit `0076f59` (OTA v1.2.1, PixelFX combat skills and mandatory
+  updater) and commit `8fcb5f8` (VR OTA manifest and version bump script).
+- Preserved the local MovementController, shared dodge timing and invulnerability,
+  Chapter I and VI integrations, C/K keyboard routing, contextual mobile DODGE
+  control, and standalone stamina module.
+- Retained the remote PixelFX library, combat actions, OTA updater and UI,
+  Android networking changes, version manifests, VR metadata, scripts, and APK
+  artifacts.
+- Reconciled shared touch controls and Chapter I/VI scene overlap so combat
+  buttons coexist with the contextual DODGE control and remote combat effects
+  use the shared dodge protection path.
+
+Files modified:
+- TECHNICAL_AUDIT.txt
+- DEVELOPMENT_LOG.txt
+- js/stick.js
+- styles.css
+- scenes/ch1_cyclops.js
+- scenes/ch6_ithaca.js
+- android/app/src/main/assets/js/stick.js
+- android/app/src/main/assets/styles.css
+- android/app/src/main/assets/scenes/ch1_cyclops.js
+- android/app/src/main/assets/scenes/ch6_ithaca.js
+
+Files created:
+- Remote OTA, PixelFX, VR metadata, and version-script files from the imported
+  commits; see the merge commit file inventory.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Remote combat scenes were used as the feature base, then the local shared
+  MovementController and dodge lifecycle were restored deliberately rather than
+  accepting older direct-dash state.
+- The standalone stamina module remains unloaded and unintegrated.
+- Mandatory OTA behaviour and network permissions were retained as explicitly
+  approved, but no runtime reliability claim is made at this stage.
+
+Testing performed:
+- Pre-merge branch, ancestry, checkpoint, remote commit, and backup checks.
+- Conflict inspection and deliberate reconciliation of eight root/Android files.
+- JavaScript syntax, parity, diff, and merge-ancestry checks are pending final
+  post-merge verification.
+
+Test results:
+- Merge completed without unresolved conflicts after manual reconciliation.
+- Browser gameplay, Android runtime, OTA failure/rollback, and APK build tests
+  were not performed in this stage.
+
+Outstanding issues:
+- Validate OTA manifest and file integrity, offline startup, failed downloads,
+  rollback, service-worker cache coherence, and Android lifecycle behaviour.
+- Validate all combat controls and chapter regressions in browser and Android.
+- Decide whether generated APK artifacts should remain in the integration history.
+
+Platform validation:
+Not tested; source-level merge only.
+
+Next recommended action:
+Run post-merge static checks, then perform feature reconciliation and targeted
+browser/Android integration tests before producing fresh APK builds.
 --------------------------------------------------

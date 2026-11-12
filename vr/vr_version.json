@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "build": 1,
+  "minApkBuild": 1,
+  "hash": "vr-1.0.0-b1",
+  "notes": "Initial Quest 3S launch build of odyssey VR with 6DoF Touch Plus combat, Sanctuary Lobby, and all 7 chapters.",
+  "apkUrl": "",
+  "files": [],
+  "tuning": {
+    "swordDamageMultiplier": 1.0,
+    "uppercutMultiplier": 1.65,
+    "spinSlashMultiplier": 1.35,
+    "spearMultiplier": 1.45,
+    "playerMaxHealth": 4,
+    "cyclopsHp": 180,
+    "bloomIntensity": 0.65
+  }
+}
+

@@ -1,4 +1,26 @@
 ================================================================================
+
+--------------------------------------------------------------------------------
+M. TEAM INTEGRATION STAGE 3 — MERGE CHECKPOINT
+--------------------------------------------------------------------------------
+- [VERIFIED] Integration branch `integration/team-merge-2026-11-12` merged
+  `origin/main` with a normal non-fast-forward merge.
+- Imported commits: `0076f59` (OTA v1.2.1, PixelFX combat skills and mandatory
+  updater) and `8fcb5f8` (VR OTA manifest and version bump script).
+- [VERIFIED] The local `MovementController`, shared dodge lifecycle, Chapter I
+  and Chapter VI controller integration, C/K routing, contextual DODGE control,
+  and standalone `StaminaSystem` were preserved.
+- [VERIFIED] Remote PixelFX assets, combat actions, OTA updater, version
+  manifests, Android networking changes, and VR scripts were retained.
+- Manual reconciliation was required in `js/stick.js`, `styles.css`,
+  `scenes/ch1_cyclops.js`, and `scenes/ch6_ithaca.js`, including their Android
+  packaged counterparts. Remote combat controls were retained alongside the
+  contextual DODGE button; direct dash checks were routed through shared dodge
+  invulnerability and timing.
+- Known risks remain: OTA integrity, offline, rollback, lifecycle, cache
+  coherence, and Android runtime behaviour require dedicated later testing.
+  Combat actions are present but stamina integration remains intentionally
+  absent.
                     ODYSSEY — TECHNICAL AUDIT & ARCHITECTURE REFERENCE
 ================================================================================
 Document: TECHNICAL_AUDIT.txt

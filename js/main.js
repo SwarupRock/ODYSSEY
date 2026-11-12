@@ -13,6 +13,7 @@ import { Fx } from "./fx.js";
 import { Voice } from "./voice.js";
 import { SWORDS, ARROWS } from "./gear.js";
 import { FilmIntro } from "./combat.js";
+import { Updater } from "./updater.js";
 import { PrologueScene } from "../scenes/prologue.js";
 import { Ch1Scene } from "../scenes/ch1_cyclops.js";
 import { Ch2Scene } from "../scenes/ch2_winds.js";
@@ -100,6 +101,7 @@ function renderTitle() {
   const has = Save.data.completed.length > 0 || Save.data.unlocked > 1;
   $("btn-continue").classList.toggle("hidden", !has);
   $("btn-continue").textContent = "Continue — " + chapterName(Math.min(Save.data.unlocked, 6));
+  Updater.render();
 }
 
 /* ---------------- the Armory — weapons & arrows, 3 tiers each ---------------- */
@@ -174,6 +176,11 @@ function renderMap() {
    ============================================================ */
 
 export async function startChapter(idx) {
+  if (Updater.isLocked()) {
+    showScreen("title");
+    Updater.render();
+    return;
+  }
   if (idx < 0 || idx >= CHAPTERS.length) return;
   currentIdx = idx;
   showScreen(null); // hide all screens
@@ -205,6 +212,7 @@ async function beginScene() {
     chapterLabel: CHAPTERS[idx].label,
   });
   engine.setScene(currentScene);
+  Stick.setCombatMode(false);
   Stick.refreshBow();
   Stick.setInGame(true);
   await currentScene.begin();
@@ -225,22 +233,32 @@ export async function startNext() {
    ============================================================ */
 
 function bindUI() {
+  Updater.init((locked) => {
+    if (locked && currentIdx >= 0) returnHome();
+    Updater.render();
+  });
+
   $("btn-new-game").addEventListener("click", () => {
+    if (Updater.isLocked()) return;
     Audio.resume();
     Save.reset();
     startChapter(0);
   });
 
   $("btn-continue").addEventListener("click", () => {
+    if (Updater.isLocked()) return;
     Audio.resume();
     startChapter(Math.min(Save.data.unlocked, 6));
   });
 
-  $("btn-chapters").addEventListener("click", () => showScreen("map"));
+  $("btn-chapters").addEventListener("click", () => {
+    if (Updater.isLocked()) return;
+    showScreen("map");
+  });
   $("btn-map-back").addEventListener("click", () => showScreen("title"));
   if ($("btn-map-back-top")) $("btn-map-back-top").addEventListener("click", () => showScreen("title"));
 
-  $("btn-armory").addEventListener("click", () => { showScreen("armory"); renderArmory(); });
+  $("btn-armory").addEventListener("click", () => { if (Updater.isLocked()) return; showScreen("armory"); renderArmory(); });
   $("btn-armory-back").addEventListener("click", () => showScreen("title"));
   if ($("btn-armory-back-top")) $("btn-armory-back-top").addEventListener("click", () => showScreen("title"));
 

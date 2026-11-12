@@ -8,6 +8,7 @@
 import { PAL, drawSky, drawGround, drawRidge, drawTorch, FireParticles,
          drawOdysseus, drawAgamemnon, drawSoldier, drawNameTag } from "../js/art.js";
 import { ChapterScene, sleep } from "../js/scenefw.js";
+import { PixelVFX } from "../js/pixelvfx.js";
 
 export class PrologueScene extends ChapterScene {
   initState() {
@@ -73,6 +74,10 @@ export class PrologueScene extends ChapterScene {
         this.stepAcc = 0;
         this.audio.sfx("footstep");
         eng.shake(0.9); // cinematic royal footstep impact
+        const ax = -eng.W * 0.25 + this.walkT * eng.W * 0.47;
+        if (ax > 0 && ax < eng.W) {
+          PixelVFX.spawn("impacts/heavy-landing", ax, eng.H * 0.78 + 8, { palette: "rock", scale: 0.65, alpha: 0.7 });
+        }
       }
       if (this.walkT >= 1) {
         this.state = "talk";
@@ -125,11 +130,14 @@ export class PrologueScene extends ChapterScene {
     drawGround(ctx, gy, H - gy, "#4a2410", "#1a0d06");
     drawRidge(ctx, gy - H * 0.28, H * 0.05, "rgba(46,24,12,0.6)", 3, 120);
 
-    // fires across the city
-    this.fire.draw(ctx, 0, gy - H * 0.2, W, H * 0.22, 0.5);
+    // fires across the city — roaring animated pixelfx braziers & campfires
+    this.fire.draw(ctx, 0, gy - H * 0.2, W, H * 0.22, 0.45);
     for (let i = 0; i < 4; i++) {
       const fx = W * (0.12 + i * 0.22);
-      drawTorch(ctx, fx, gy + 4, this.t * (1 + i * 0.1), 40 + (i % 2) * 14);
+      PixelVFX.drawLoop(ctx, i % 2 === 0 ? "fire/brazier" : "fire/campfire", fx, gy + 4, this.t + i * 0.73, {
+        palette: "fire",
+        scale: i % 2 === 0 ? 0.85 : 0.78,
+      });
     }
 
     const ax = -W * 0.25 + this.walkT * W * 0.47;
@@ -150,6 +158,7 @@ export class PrologueScene extends ChapterScene {
       ctx.closePath();
       ctx.fill();
       ctx.restore();
+      PixelVFX.drawLoop(ctx, "holy/blessing", ax, gy + 8, this.t, { palette: "apollo", scale: 1.05, alpha: 0.7 });
     }
 
     // soldiers & Mycenaean standard bearers marching behind agamemnon

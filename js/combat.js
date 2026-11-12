@@ -10,6 +10,7 @@
 import { PAL } from "./art.js";
 import { Fx } from "./fx.js";
 import { Voice } from "./voice.js";
+import { PixelVFX } from "./pixelvfx.js";
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -18,11 +19,232 @@ export const Cinematic = {
   sparks: [],    // { x,y,vx,vy,t,life,c }
   trails: [],    // arrow trails { x,y,x2,y2,t,life }
   rings: [],     // impact shockwaves { x,y,r,maxR,t,life,c }
+  heroAnim: null, // { type, t, dur, dir, comboStep }
+  _combo: 0,
+  _comboReset: 0,
+  _lastSlashAt: 0,
 
-  /** a sword slash arc at (x,y); dir ±1; big=true for heavy blows */
-  slash(x, y, dir, big = false) {
+  /** direct trigger for any pixelfx module at screen coords (x,y) */
+  fx(id, x, y, opts = {}) {
+    return PixelVFX.spawn(id, x, y, opts);
+  },
+
+  /**
+   * Perform a hero combat move with pixelfx + animated Odysseus pose:
+   * move: "slash" | "uppercut" | "spin" | "spear" | "block" | "parry" | "dash"
+   */
+  performMove(move, x, y, dir = 1, opts = {}) {
+    const swordTier = opts.swordTier !== undefined ? opts.swordTier : 1;
+    const pal = opts.palette || (swordTier >= 3 ? "hector" : swordTier === 2 ? "moly" : "bronze");
+    const engine = opts.engine || null;
+
+    if (move === "slash") {
+      const step = this._comboReset > 0 ? ((this._lastSlashAt + 1) % 3) : 0;
+      this._lastSlashAt = step;
+      this._comboReset = 1.15;
+      const fxId = (swordTier >= 3 || step === 2)
+        ? "melee/heavy-cleave"
+        : step === 1 || swordTier === 2
+          ? "melee/double-slash"
+          : "melee/sword-slash";
+      const big = step === 2 || swordTier >= 3;
+      this.slashes.push({ x: x + dir * 24, y: y - 42, dir, t: 0, life: big ? 0.30 : 0.22, big });
+      PixelVFX.spawn(fxId, x + dir * 26, y - 28, {
+        flip: dir < 0,
+        palette: big ? "hector" : pal,
+        sparks: "fire",
+        scale: big ? 1.2 : 1.05,
+        light: 1.3,
+        engine,
+        autoHits: true,
+      });
+      this.heroAnim = { type: "slash", t: 0, dur: big ? 0.44 : 0.34, dir, comboStep: step };
+      return { move, step, big };
+    }
+
+    if (move === "uppercut") {
+      this._comboReset = 1.3;
+      PixelVFX.spawn("melee/uppercut", x + dir * 20, y - 8, {
+        flip: dir < 0,
+        palette: "hector",
+        sparks: "fire",
+        scale: 1.24,
+        light: 1.35,
+        engine,
+        autoHits: true,
+      });
+      PixelVFX.spawn("impacts/heavy-landing", x, y + 2, {
+        flip: dir < 0,
+        palette: "rock",
+        scale: 0.72,
+      });
+      this.heroAnim = { type: "uppercut", t: 0, dur: 0.62, dir, comboStep: 0 };
+      return { move, big: true };
+    }
+
+    if (move === "spin") {
+      this._comboReset = 1.3;
+      PixelVFX.spawn("melee/spin-slash", x, y - 16, {
+        flip: dir < 0,
+        palette: swordTier >= 2 ? "hector" : "bronze",
+        sparks: "fire",
+        radius: 22,
+        scale: 1.28,
+        light: 1.35,
+        engine,
+        autoHits: true,
+      });
+      PixelVFX.spawn("impacts/ground-slam", x, y + 2, {
+        palette: "rock",
+        scale: 0.85,
+      });
+      this.heroAnim = { type: "spin", t: 0, dur: 0.56, dir, comboStep: 0 };
+      return { move, big: true };
+    }
+
+    if (move === "spear") {
+      this._comboReset = 1.3;
+      PixelVFX.spawn("melee/spear-sweep", x + dir * 18, y - 14, {
+        flip: dir < 0,
+        palette: "bronze",
+        sparks: "fire",
+        scale: 1.22,
+        light: 1.25,
+        engine,
+        autoHits: true,
+      });
+      PixelVFX.spawn("melee/thrust", x + dir * 42, y - 22, {
+        flip: dir < 0,
+        palette: "hector",
+        scale: 1.0,
+        light: 1.2,
+      });
+      this.heroAnim = { type: "spear", t: 0, dur: 0.52, dir, comboStep: 0 };
+      return { move, big: false };
+    }
+
+    if (move === "parry") {
+      PixelVFX.spawn("impacts/parry", x + dir * 20, y - 34, {
+        flip: dir < 0,
+        palette: "apollo",
+        scale: 1.15,
+        light: 1.4,
+      });
+      PixelVFX.spawn("holy/divine-shield", x, y - 10, {
+        palette: "apollo",
+        scale: 0.95,
+        light: 1.3,
+      });
+      PixelVFX.spawn("impacts/impact-frame", x, y - 40, { scale: 1.2 });
+      this.heroAnim = { type: "block", t: 0, dur: 0.45, dir, parry: true };
+      return { move };
+    }
+
+    if (move === "block") {
+      PixelVFX.spawn("impacts/shield-block", x + dir * 16, y - 22, {
+        flip: dir < 0,
+        palette: "bronze",
+        sparks: "fire",
+        scale: 1.0,
+        light: 1.2,
+      });
+      this.heroAnim = { type: "block", t: 0, dur: 0.55, dir, parry: false };
+      return { move };
+    }
+
+    if (move === "dash") {
+      PixelVFX.spawn("moves/dash-strike", x, y - 4, {
+        flip: dir < 0,
+        palette: "bronze",
+        scale: 0.95,
+      });
+      this.heroAnim = { type: "dash", t: 0, dur: 0.28, dir };
+      return { move };
+    }
+    return null;
+  },
+
+  /** current procedural pose offset for drawOdysseus() */
+  getHeroPose() {
+    const a = this.heroAnim;
+    if (!a) return null;
+    const u = clamp(a.t / a.dur, 0, 1);
+    const dir = a.dir || 1;
+    if (a.type === "uppercut") {
+      // quick coil 0..0.18, high rising jump 0.18..0.85, land
+      const dy = u < 0.16
+        ? 6 * (u / 0.16)
+        : -58 * Math.sin(((u - 0.16) / 0.84) * Math.PI);
+      const bladeAngle = u < 0.16 ? 0.9 : -2.1 + u * 0.7;
+      return { attackType: "uppercut", k: u, dy, dx: dir * Math.sin(u * Math.PI) * 16, lean: u < 0.16 ? 0.15 : -0.2, spin: 0, bladeAngle, shield: false };
+    }
+    if (a.type === "spin") {
+      const dy = -14 * Math.sin(u * Math.PI);
+      const spin = u * Math.PI * 4 * dir; // crisp fast double/single whirl
+      return { attackType: "spin", k: u, dy, dx: dir * Math.sin(u * Math.PI) * 10, lean: 0.12, spin, bladeAngle: 0.15, shield: false };
+    }
+    if (a.type === "spear") {
+      const lunge = Math.sin(Math.min(1, u * 1.4) * Math.PI);
+      return { attackType: "spear", k: u, dy: 2 * lunge, dx: dir * lunge * 28, lean: 0.26 * lunge, spin: 0, bladeAngle: -0.08, shield: false };
+    }
+    if (a.type === "slash") {
+      const swing = Math.sin(u * Math.PI);
+      const bladeAngle = a.comboStep === 1 ? (1.3 - u * 2.5) : (-1.7 + u * 2.7);
+      return { attackType: "slash", k: u, dy: 0, dx: dir * swing * 16, lean: 0.22 * swing, spin: 0, bladeAngle, shield: false };
+    }
+    if (a.type === "block") {
+      return { attackType: "block", k: u, dy: 2, dx: -dir * 4 * (1 - u), lean: -0.08, spin: 0, bladeAngle: -0.9, shield: true, parry: !!a.parry };
+    }
+    if (a.type === "dash") {
+      return { attackType: "dash", k: u, dy: -6 * Math.sin(u * Math.PI), dx: 0, lean: 0.34, spin: 0, bladeAngle: 0.4, shield: false };
+    }
+    return null;
+  },
+
+  /** floating pixelfx damage / crit number + combo counter */
+  damageNumber(x, y, dmg, crit = false, comboCount = 0) {
+    if (crit) {
+      PixelVFX.spawn("ui/crit-number", x, y - 16, {
+        text: String(dmg) + "!",
+        label: "CRIT",
+        palette: "hector",
+        scale: 0.9,
+      });
+    } else {
+      PixelVFX.spawn("ui/damage-number", x, y, {
+        text: "-" + String(dmg),
+        palette: "blood",
+        scale: 0.92,
+      });
+    }
+    if (comboCount >= 2) {
+      PixelVFX.spawn("ui/combo-counter", x - 18, y - 48, {
+        count: comboCount,
+        label: "COMBO",
+        palette: "hector",
+        scale: 0.82,
+      });
+    }
+  },
+
+  /** a sword slash arc at (x,y); dir ±1; big=true for heavy blows; swordTier=0..3 */
+  slash(x, y, dir, big = false, swordTier = 1) {
     this.slashes.push({ x, y, dir, t: 0, life: big ? 0.30 : 0.22, big });
-    const n = big ? 16 : 9;
+    // pixelfx sword slash scaled by blade tier
+    const fxId = swordTier >= 3 || big
+      ? "melee/heavy-cleave"
+      : swordTier === 2
+        ? "melee/double-slash"
+        : "melee/sword-slash";
+    const pal = swordTier >= 3 || big ? "hector" : swordTier === 2 ? "moly" : "bronze";
+    PixelVFX.spawn(fxId, x, y + 18, {
+      flip: dir < 0,
+      palette: pal,
+      scale: big ? 1.18 : 0.95,
+      light: 1.25,
+    });
+
+    const n = big ? 12 : 6;
     for (let i = 0; i < n; i++) {
       const a = (dir > 0 ? -0.9 : Math.PI + 0.9) + (Math.random() - 0.5) * 1.6;
       const sp = 120 + Math.random() * (big ? 300 : 190);
@@ -36,14 +258,32 @@ export const Cinematic = {
   },
 
   /** fast arrow trail segment spawned by scenefw on each arrow frame */
-  arrowTrail(x, y, x2, y2) {
-    this.trails.push({ x, y, x2, y2, t: 0, life: 0.16 });
+  arrowTrail(x, y, x2, y2, arrowTier = 0) {
+    this.trails.push({ x, y, x2, y2, t: 0, life: 0.16, tier: arrowTier });
   },
 
-  /** bronze impact: shockwave ring + sparks + flash */
-  impact(x, y, c = PAL.bronzeBright, big = false) {
+  /** bronze / elemental impact: pixelfx hit + shockwave ring + sparks + flash */
+  impact(x, y, c = PAL.bronzeBright, big = false, kind = null) {
     this.rings.push({ x, y, r: 6, maxR: big ? 64 : 40, t: 0, life: big ? 0.38 : 0.26, c });
-    for (let i = 0; i < (big ? 14 : 8); i++) {
+
+    if (kind === "fire") {
+      PixelVFX.spawn("explosions/small-explosion", x, y + 16, { palette: "fire", scale: 0.8 });
+    } else if (kind === "apollo") {
+      PixelVFX.spawn("holy/smite", x, y + 24, { palette: "apollo", scale: 0.85, light: 1.3 });
+    } else if (kind === "blunt") {
+      PixelVFX.spawn("impacts/blunt-hit", x, y + 12, { palette: c === PAL.blood ? "blood" : "rock", scale: big ? 1.15 : 0.9 });
+    } else if (kind === "zap") {
+      PixelVFX.spawn("lightning/zap-hit", x, y + 12, { palette: "apollo", scale: 1.0 });
+    } else {
+      const isBlood = c === PAL.blood;
+      PixelVFX.spawn(big ? "impacts/crit-hit" : "impacts/hit-spark", x, y + 12, {
+        palette: isBlood ? "blood" : big ? "hector" : "bronze",
+        scale: big ? 1.1 : 0.92,
+        light: 1.2,
+      });
+    }
+
+    for (let i = 0; i < (big ? 10 : 6); i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 90 + Math.random() * (big ? 260 : 170);
       this.sparks.push({
@@ -56,7 +296,41 @@ export const Cinematic = {
     Fx.hit(big ? 0.75 : 0.5);
   },
 
+  /** armor block / shield deflection */
+  block(x, y, dir = 1, armorTier = 1) {
+    PixelVFX.spawn("impacts/shield-block", x, y + 26, {
+      flip: dir < 0,
+      palette: armorTier >= 2 ? "apollo" : "bronze",
+      sparks: "fire",
+      scale: 1.05,
+      light: 1.25,
+    });
+    PixelVFX.spawn("impacts/parry", x + dir * 10, y + 4, {
+      flip: dir < 0,
+      palette: "bronze",
+      scale: 0.85,
+    });
+  },
+
+  /** dash / landing dust wave */
+  dash(x, y, dir = 1) {
+    PixelVFX.spawn("impacts/heavy-landing", x, y, {
+      flip: dir < 0,
+      palette: "rock",
+      scale: 0.72,
+    });
+  },
+
   update(dt) {
+    PixelVFX.update(dt);
+    if (this._comboReset > 0) {
+      this._comboReset -= dt;
+      if (this._comboReset <= 0) this._combo = 0;
+    }
+    if (this.heroAnim) {
+      this.heroAnim.t += dt;
+      if (this.heroAnim.t >= this.heroAnim.dur) this.heroAnim = null;
+    }
     for (const s of this.slashes) s.t += dt;
     this.slashes = this.slashes.filter((s) => s.t < s.life);
     for (const p of this.sparks) {
@@ -78,36 +352,33 @@ export const Cinematic = {
     ctx.lineCap = "round";
     for (const tr of this.trails) {
       const k = 1 - tr.t / tr.life;
-      ctx.globalAlpha = k * 0.55;
-      ctx.strokeStyle = PAL.boneDim;
-      ctx.lineWidth = 2.4 * k + 0.6;
+      ctx.globalAlpha = k * (tr.tier >= 1 ? 0.75 : 0.55);
+      ctx.strokeStyle = tr.tier >= 2 ? PAL.bronzeBright : tr.tier === 1 ? PAL.fire : PAL.boneDim;
+      ctx.lineWidth = (tr.tier >= 1 ? 3.2 : 2.4) * k + 0.6;
       ctx.beginPath(); ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.x2, tr.y2); ctx.stroke();
     }
-    // slash arcs — two crescent strokes, thick then thin
+    // subtle backing glow under pixelfx slashes
     for (const s of this.slashes) {
       const k = s.t / s.life;
-      const a = Math.sin(k * Math.PI); // in-out
-      const R = s.big ? 58 : 42;
-      const sweep = (2.3 - k * 1.4);
-      ctx.globalAlpha = a * 0.95;
+      const a = Math.sin(k * Math.PI);
+      const R = s.big ? 54 : 38;
+      const sweep = (2.1 - k * 1.4);
+      ctx.globalAlpha = a * 0.35;
       ctx.save();
       ctx.translate(s.x, s.y);
       ctx.scale(s.dir, 1);
       ctx.rotate(-0.7 + k * 0.9);
-      ctx.strokeStyle = PAL.bone;
-      ctx.lineWidth = s.big ? 9 : 6;
-      ctx.beginPath(); ctx.arc(0, 0, R, -sweep / 2, sweep / 2); ctx.stroke();
       ctx.strokeStyle = PAL.fireBright;
-      ctx.lineWidth = s.big ? 3.4 : 2.2;
-      ctx.beginPath(); ctx.arc(0, 0, R - 8, -sweep / 2 + 0.12, sweep / 2 - 0.12); ctx.stroke();
+      ctx.lineWidth = s.big ? 4 : 2.5;
+      ctx.beginPath(); ctx.arc(0, 0, R, -sweep / 2, sweep / 2); ctx.stroke();
       ctx.restore();
     }
     // impact rings
     for (const r of this.rings) {
       const k = 1 - r.t / r.life;
-      ctx.globalAlpha = k * 0.9;
+      ctx.globalAlpha = k * 0.65;
       ctx.strokeStyle = r.c;
-      ctx.lineWidth = 5 * k + 1;
+      ctx.lineWidth = 3.5 * k + 0.8;
       ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
     }
     // sparks — warm dots with gravity
@@ -115,12 +386,19 @@ export const Cinematic = {
       const k = 1 - p.t / p.life;
       ctx.globalAlpha = k;
       ctx.fillStyle = p.c;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 1.6 + 2.2 * k, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 + 1.8 * k, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
+
+    // Crisp pixel-art VFX overlay
+    PixelVFX.draw(ctx, "front");
   },
 
-  clear() { this.slashes = []; this.sparks = []; this.trails = []; this.rings = []; },
+  clear() {
+    this.slashes = []; this.sparks = []; this.trails = []; this.rings = [];
+    this.heroAnim = null; this._combo = 0; this._comboReset = 0;
+    PixelVFX.clear();
+  },
 };
 
 /* ============================================================
@@ -179,31 +457,40 @@ export class FilmIntro {
       if (shot.id === "sack") { this.audio.sfx("reveal"); this.eng.shake(1.5); }
       if (shot.id === "card" && shot.line === "ODYSSEY") this.audio.sfx("reveal");
     }
-    // timed cinematic audio cues during the Trojan Horse breakout
+    // timed cinematic audio + pixelfx cues during the Trojan Horse breakout
     if (shot.id === "sack") {
+      const W = this.eng.W, H = this.eng.H, gy = H * 0.84;
+      const s = Math.min(W, H) / 420;
+      const hx = W * 0.46, hcx = hx + 16 * s;
       if (this.t > 0.7 && !this._fired.has("rope")) {
         this._fired.add("rope");
         this.audio.sfx("thud");
         this.eng.shake(0.8);
+        PixelVFX.spawn("impacts/heavy-landing", hcx - 4 * s, gy, { palette: "rock", scale: 0.75 });
       }
       if (this.t > 2.4 && !this._fired.has("hero1")) {
         this._fired.add("hero1");
         this.audio.sfx("slash");
         this.eng.shake(1.2);
+        PixelVFX.spawn("impacts/heavy-landing", hcx, gy, { palette: "rock", scale: 0.9 });
+        PixelVFX.spawn("melee/sword-slash", hx + 120 * s, gy - 20 * s, { palette: "bronze", scale: 0.9 });
       }
       if (this.t > 3.8 && !this._fired.has("hero2")) {
         this._fired.add("hero2");
         this.audio.sfx("thud");
         this.eng.shake(0.8);
+        PixelVFX.spawn("impacts/ground-slam", hcx, gy, { palette: "rock", scale: 0.72 });
       }
       if (this.t > 5.1 && !this._fired.has("hero3")) {
         this._fired.add("hero3");
         this.audio.sfx("slash");
+        PixelVFX.spawn("melee/double-slash", hx - 75 * s, gy - 22 * s, { flip: true, palette: "bronze", scale: 0.9 });
       }
       if (this.t > 6.2 && !this._fired.has("hero4")) {
         this._fired.add("hero4");
         this.audio.sfx("roar");
         this.eng.shake(1.8);
+        PixelVFX.spawn("fire/fire-ring", hx + 10 * s, gy, { palette: "fire", scale: 0.95 });
       }
     }
   }
@@ -367,15 +654,10 @@ export class FilmIntro {
     const s = Math.min(W, H) / 440;
     const cx = W * (0.02 + k * 0.22);
     this._horse(ctx, cx, gy - 4, s, this.t);
-    // Trojan torches at the gate (right)
-    for (let i = 0; i < 5; i++) {
-      const tx = W * (0.6 + i * 0.07), ty = gy - 2;
-      const fl = 4 + Math.sin(this.t * 9 + i * 2) * 1.8;
-      // Torch light halo
-      ctx.fillStyle = "rgba(255,180,70,0.35)";
-      ctx.beginPath(); ctx.arc(tx, ty - fl * 2.2, fl * 3.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "rgba(255,190,80,0.95)";
-      ctx.beginPath(); ctx.arc(tx, ty - fl * 2.2, fl, 0, Math.PI * 2); ctx.fill();
+    // Trojan braziers / torches at the gate (right)
+    for (let i = 0; i < 4; i++) {
+      const tx = W * (0.62 + i * 0.085), ty = gy - 2;
+      PixelVFX.drawLoop(ctx, "fire/brazier", tx, ty, this.t + i * 0.67, { palette: "fire", scale: 0.65 });
     }
     this._embers(ctx, W, H, 24);
   }
@@ -508,13 +790,9 @@ export class FilmIntro {
       ctx.beginPath(); ctx.moveTo(sx, wy + 6); ctx.lineTo(sx, gy); ctx.stroke();
     }
     // Greek camp fires on the plain
-    for (let i = 0; i < 7; i++) {
-      const fx = W * (0.06 + i * 0.14), fy = gy + H * 0.045;
-      const fl = 4 + Math.sin(this.t * 7 + i * 2.2) * 2;
-      ctx.fillStyle = "rgba(255,150,50,0.3)";
-      ctx.beginPath(); ctx.arc(fx, fy - fl * 0.5, fl * 3, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "rgba(255,180,70,0.95)";
-      ctx.beginPath(); ctx.ellipse(fx, fy, fl * 1.6, fl, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 5; i++) {
+      const fx = W * (0.1 + i * 0.2), fy = gy + H * 0.05;
+      PixelVFX.drawLoop(ctx, "fire/campfire", fx, fy, this.t + i * 0.71, { palette: "fire", scale: 0.72 });
     }
     ctx.fillStyle = "#160c07"; ctx.fillRect(0, gy + H * 0.06, W, H);
     this._embers(ctx, W, H, 20);
@@ -566,11 +844,9 @@ export class FilmIntro {
     // the horse on the shore, distant, waiting
     this._horse(ctx, W * 0.55, gy, Math.min(W, H) / 900, this.t);
     // beach campfires (the empty camp)
-    for (let i = 0; i < 5; i++) {
-      const fx = W * (0.08 + i * 0.07), fy = gy - 2;
-      const fl = 3.5 + Math.sin(this.t * 8 + i * 2) * 1.5;
-      ctx.fillStyle = "rgba(255,160,60,0.9)";
-      ctx.beginPath(); ctx.arc(fx, fy - fl, fl, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 4; i++) {
+      const fx = W * (0.09 + i * 0.09), fy = gy + 2;
+      PixelVFX.drawLoop(ctx, "fire/campfire", fx, fy, this.t + i * 0.83, { palette: "fire", scale: 0.58 });
     }
     this._embers(ctx, W, H, 16);
   }
@@ -624,52 +900,194 @@ export class FilmIntro {
     ctx.beginPath(); ctx.arc(W * 0.9, gy - fl * 2, fl, 0, Math.PI * 2); ctx.fill();
   }
 
-  /** the wheel — great wheel dragged through a gate, rope taut, slow */
+  /** the wheel — Trojan Horse on its rolling timber sled hauled toward the Scaean Gate */
   _drawWheel(ctx, W, H, k) {
-    const gy = H * 0.88;
-    const cx = W * (0.30 + k * 0.10);
+    const gy = H * 0.87;
+    const roll = k * W * 0.14;
+    const sledX = W * 0.25 + roll;
+    const R = H * 0.145;
+    const frontWheelX = sledX + R * 1.45;
+    const rearWheelX = sledX - R * 0.85;
+    const wheelY = gy - R;
 
-    // Warm torchlit background
+    // 1. Warm torchlit night sky over Troy
     const skyG = ctx.createLinearGradient(0, 0, 0, gy);
-    skyG.addColorStop(0, "#160b06");
-    skyG.addColorStop(0.6, "#3a160a");
-    skyG.addColorStop(1, "#66240d");
+    skyG.addColorStop(0, "#0c0604");
+    skyG.addColorStop(0.5, "#260f08");
+    skyG.addColorStop(1, "#5c210c");
     ctx.fillStyle = skyG;
     ctx.fillRect(0, 0, W, H);
 
-    // Gate posts
-    ctx.fillStyle = "#26160e";
-    ctx.fillRect(W * 0.55, gy - H * 0.34, W * 0.05, H * 0.34);
-    ctx.fillRect(W * 0.72, gy - H * 0.36, W * 0.05, H * 0.36);
-    ctx.fillStyle = "#180d08";
-    ctx.fillRect(W * 0.55, gy - H * 0.30, W * 0.22, H * 0.30);
-    // Ground
-    ctx.fillStyle = "#1c100a";
-    ctx.fillRect(0, gy, W, H - gy);
-    // The wheel
-    const R = H * 0.20;
-    ctx.strokeStyle = "#38241b";
-    ctx.lineWidth = R * 0.16;
-    ctx.beginPath(); ctx.arc(cx, gy - R, R, 0, Math.PI * 2); ctx.stroke();
-    ctx.lineWidth = R * 0.09;
+    // Horizon city-wall silhouettes + distant watchfires
+    ctx.fillStyle = "#160b06";
+    ctx.fillRect(0, gy - H * 0.26, W * 0.56, H * 0.26);
     for (let i = 0; i < 6; i++) {
-      const a = this.t * 0.5 + (i / 6) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * R * 0.9, gy - R + Math.sin(a) * R * 0.9);
-      ctx.lineTo(cx - Math.cos(a) * R * 0.9, gy - R - Math.sin(a) * R * 0.9);
-      ctx.stroke();
+      ctx.fillRect(W * (0.04 + i * 0.088), gy - H * 0.30, W * 0.04, H * 0.04);
     }
-    // Ropes up to the horse
-    ctx.strokeStyle = "rgba(160,115,70,0.9)";
-    ctx.lineWidth = 3.5;
-    ctx.beginPath(); ctx.moveTo(cx - 8, gy - R * 1.9); ctx.lineTo(W * 0.60, gy - H * 0.52); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx + 10, gy - R * 1.88); ctx.lineTo(W * 0.64, gy - H * 0.50); ctx.stroke();
-    // Torch flare on the wheel
-    const fl = 8 + Math.sin(this.t * 11) * 2.5;
-    ctx.fillStyle = "rgba(255,180,80,0.4)";
-    ctx.beginPath(); ctx.arc(cx + R * 0.7, gy - R * 1.7, fl * 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(255,200,90,0.95)";
-    ctx.beginPath(); ctx.arc(cx + R * 0.7, gy - R * 1.7, fl, 0, Math.PI * 2); ctx.fill();
+
+    // 2. Massive Scaean Gate masonry arch on the right
+    const gx0 = W * 0.54;
+    ctx.fillStyle = "#1d100a";
+    ctx.fillRect(gx0, gy - H * 0.62, W - gx0, H * 0.62);
+    // Gatehouse battlements
+    for (let i = 0; i < 6; i++) {
+      ctx.fillRect(gx0 + i * W * 0.08, gy - H * 0.69, W * 0.045, H * 0.07);
+    }
+    // Stone block seams
+    ctx.strokeStyle = "rgba(90,52,30,0.38)";
+    ctx.lineWidth = 1.6;
+    for (let row = 1; row <= 5; row++) {
+      const sy = gy - row * H * 0.11;
+      ctx.beginPath(); ctx.moveTo(gx0, sy); ctx.lineTo(W, sy); ctx.stroke();
+    }
+    // Open vaulted gate interior (deep warm glow spilling out from Troy's square)
+    const archX = W * 0.67, archW = W * 0.26, archH = H * 0.44;
+    const gateGlow = ctx.createRadialGradient(archX, gy - H * 0.14, 12, archX, gy - H * 0.14, archH);
+    gateGlow.addColorStop(0, "rgba(255,155,60,0.55)");
+    gateGlow.addColorStop(0.6, "rgba(180,65,20,0.28)");
+    gateGlow.addColorStop(1, "#0b0503");
+    ctx.fillStyle = gateGlow;
+    ctx.beginPath();
+    ctx.moveTo(archX - archW * 0.5, gy);
+    ctx.lineTo(archX - archW * 0.5, gy - archH * 0.62);
+    ctx.arc(archX, gy - archH * 0.62, archW * 0.5, Math.PI, 0);
+    ctx.lineTo(archX + archW * 0.5, gy);
+    ctx.closePath();
+    ctx.fill();
+
+    // Hanging scarlet banners + blazing gatehouse braziers
+    ctx.fillStyle = "#6e1b14";
+    ctx.fillRect(gx0 + W * 0.02, gy - H * 0.50, W * 0.025, H * 0.16);
+    ctx.fillRect(W * 0.90, gy - H * 0.50, W * 0.025, H * 0.16);
+    PixelVFX.drawLoop(ctx, "fire/brazier", gx0 + W * 0.032, gy - H * 0.26, this.t, { palette: "fire", scale: 0.72 });
+    PixelVFX.drawLoop(ctx, "fire/brazier", W * 0.91, gy - H * 0.26, this.t + 0.5, { palette: "fire", scale: 0.72 });
+
+    // 3. Cobblestone road / trodden siege path
+    ctx.fillStyle = "#180d07";
+    ctx.fillRect(0, gy, W, H - gy);
+    ctx.strokeStyle = "rgba(120,76,42,0.28)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, gy + 2); ctx.lineTo(W, gy + 2); ctx.stroke();
+
+    // 4. Giant Trojan Horse standing clearly atop the rolling timber sled
+    const sledY = gy - R * 1.12;
+    const horseScale = Math.min(W, H) / 485;
+    this._horse(ctx, sledX + R * 0.25, sledY + 4, horseScale, this.t);
+
+    // Heavy oak sled beams + vertical axle struts down to wheels
+    ctx.fillStyle = "#2d1a0e";
+    ctx.fillRect(sledX - R * 1.35, sledY - H * 0.032, R * 3.35, H * 0.055);
+    ctx.strokeStyle = "#9b6b32";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sledX - R * 1.35, sledY - H * 0.032, R * 3.35, H * 0.055);
+    ctx.fillStyle = "#24140a";
+    ctx.fillRect(rearWheelX - R * 0.14, sledY + H * 0.02, R * 0.28, wheelY - sledY);
+    ctx.fillRect(frontWheelX - R * 0.14, sledY + H * 0.02, R * 0.28, wheelY - sledY);
+
+    // 5. Two heavy iron-rimmed spoked siege wheels
+    const spinA = k * 2.4 + this.t * 0.45;
+    for (const wx of [rearWheelX, frontWheelX]) {
+      // Wheel shadow on cobblestones
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.beginPath(); ctx.ellipse(wx, gy + 3, R * 0.85, 5, 0, 0, Math.PI * 2); ctx.fill();
+      // Spokes (beveled timber)
+      ctx.strokeStyle = "#4d2f18";
+      ctx.lineWidth = Math.max(4, R * 0.11);
+      for (let i = 0; i < 8; i++) {
+        const a = spinA + (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(wx, wheelY);
+        ctx.lineTo(wx + Math.cos(a) * R * 0.88, wheelY + Math.sin(a) * R * 0.88);
+        ctx.stroke();
+      }
+      // Wooden felloe + outer iron rim with firelight catch
+      ctx.strokeStyle = "#362012";
+      ctx.lineWidth = Math.max(7, R * 0.19);
+      ctx.beginPath(); ctx.arc(wx, wheelY, R * 0.88, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "#1c120c";
+      ctx.lineWidth = Math.max(3, R * 0.07);
+      ctx.beginPath(); ctx.arc(wx, wheelY, R * 0.96, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "rgba(230,150,70,0.45)";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(wx, wheelY, R * 0.96, -1.2, 0.5); ctx.stroke();
+      // Central bronze hub + rivets
+      ctx.fillStyle = "#9b6b32";
+      ctx.beginPath(); ctx.arc(wx, wheelY, R * 0.22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#180d07";
+      ctx.beginPath(); ctx.arc(wx, wheelY, R * 0.09, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 6. Taut braided siege ropes from sled hitch to hauling Trojans
+    const hitchX = sledX + R * 1.98;
+    const hitchY = sledY - H * 0.005;
+    const pullers = [0, 1, 2, 3];
+    const heave = Math.sin(this.t * 4.2) * 2.5;
+    ctx.strokeStyle = "#c49452";
+    ctx.lineWidth = 3.2;
+    ctx.beginPath(); ctx.moveTo(hitchX, hitchY - 3); ctx.lineTo(W * 0.84 + roll * 0.25, gy - H * 0.10 + heave); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hitchX, hitchY + 4); ctx.lineTo(W * 0.80 + roll * 0.25, gy - H * 0.08 + heave); ctx.stroke();
+
+    // 7. Full-bodied Trojan soldier silhouettes with articulated legs braced on ground
+    for (const i of pullers) {
+      const px = W * (0.58 + i * 0.075) + roll * 0.25;
+      const stride = Math.sin(this.t * 4.2 + i * 0.65);
+      const lean = 0.28 + stride * 0.04;
+      const h = H * 0.165;
+      const hipY = -h * 0.42;
+      ctx.save();
+      ctx.translate(px, gy);
+      // Ground shadow under feet
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.beginPath(); ctx.ellipse(0, 2, h * 0.28, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Rear bracing leg (planted back behind hips, pushing hard)
+      ctx.strokeStyle = "#1a0d08"; ctx.lineWidth = Math.max(4, h * 0.11); ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(h * 0.04, hipY);
+      ctx.lineTo(-h * 0.10, -h * 0.21);
+      ctx.lineTo(-h * 0.22, -2);
+      ctx.stroke();
+
+      // Front striding leg (bent knee stepping toward gate)
+      ctx.strokeStyle = "#120906"; ctx.lineWidth = Math.max(4, h * 0.115);
+      ctx.beginPath();
+      ctx.moveTo(h * 0.04, hipY);
+      ctx.lineTo(h * 0.20 + stride * h * 0.03, -h * 0.22);
+      ctx.lineTo(h * 0.16 + stride * h * 0.04, -2);
+      ctx.stroke();
+
+      // Bronze greaves highlight on shins
+      ctx.strokeStyle = "rgba(180,120,55,0.45)"; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(h * 0.20 + stride * h * 0.03, -h * 0.22);
+      ctx.lineTo(h * 0.16 + stride * h * 0.04, -4);
+      ctx.stroke();
+
+      // Upper torso + war tunic skirt + helmet pivoted around hips
+      ctx.translate(h * 0.04, hipY);
+      ctx.rotate(lean);
+      // Tunic / chiton skirt draping over upper thighs
+      ctx.fillStyle = "#120906";
+      ctx.beginPath();
+      ctx.moveTo(-h * 0.14, 0);
+      ctx.lineTo(h * 0.16, 0);
+      ctx.lineTo(h * 0.20, h * 0.12);
+      ctx.lineTo(-h * 0.18, h * 0.12);
+      ctx.closePath(); ctx.fill();
+      // Torso & cuirass
+      ctx.fillRect(-h * 0.14, -h * 0.44, h * 0.28, h * 0.45);
+      // Helmet + scarlet crest
+      ctx.beginPath(); ctx.arc(h * 0.02, -h * 0.56, h * 0.13, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#8a2216";
+      ctx.beginPath(); ctx.arc(-h * 0.03, -h * 0.68, h * 0.10, Math.PI, 0); ctx.fill();
+      // Both arms reaching back to grip the taut rope
+      ctx.strokeStyle = "#120906"; ctx.lineWidth = Math.max(3, h * 0.085);
+      ctx.beginPath(); ctx.moveTo(-h * 0.04, -h * 0.34); ctx.lineTo(-h * 0.34, -h * 0.18); ctx.stroke();
+      ctx.restore();
+    }
+    // Lead torchbearer lighting the Scaean Gate road
+    PixelVFX.drawLoop(ctx, "fire/torch", W * 0.86 + roll * 0.25, gy - H * 0.14, this.t, { palette: "fire", scale: 0.9 });
+    this._embers(ctx, W, H, 26);
   }
 
   /** the sack — Christopher Nolan-style cinematic: heroes emerging one by one, tactical landings, drawn blades */

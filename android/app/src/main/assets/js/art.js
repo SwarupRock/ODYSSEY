@@ -216,20 +216,33 @@ function _body(ctx, y, s, skin, tint) {
  * (pauldron at 2+, crest at 3), bow drawn only when equipped.
  * Cinematic pass: ground shadow, torch-side rim light, cloak fold.
  */
-export function drawOdysseus(ctx, x, y, s, dir, t, battle = false, moving = false, kit = null) {
-  // grounded shadow ellipse — anchors the figure in the scene
+export function drawOdysseus(ctx, x, y, s, dir, t, battle = false, moving = false, kit = null, anim = null) {
+  const dy = anim ? (anim.dy || 0) : 0;
+  const dx = anim ? (anim.dx || 0) : 0;
+  const airScale = Math.max(0.55, 1 + dy / 110);
+  // grounded shadow ellipse — anchors the figure in the scene & shrinks when airborne
   ctx.save();
-  ctx.globalAlpha = 0.30;
+  ctx.globalAlpha = 0.30 * airScale;
   ctx.fillStyle = "#000";
   ctx.beginPath();
-  ctx.ellipse(x, y + 2 * s, 16 * s, 4 * s, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + dx, y + 2 * s, 16 * s * airScale, 4 * s * airScale, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  _flip(ctx, x, dir, () => {
+  const spinScaleX = anim && anim.spin ? Math.cos(anim.spin) : 1;
+  ctx.save();
+  ctx.translate(x + dx, 0);
+  ctx.scale((dir < 0 ? -1 : 1) * (Math.abs(spinScaleX) < 0.14 ? (spinScaleX < 0 ? -0.14 : 0.14) : spinScaleX), 1);
+  (() => {
     const skin = PAL.sand, tint = PAL.ink;
-    const bob = moving ? Math.sin(t * 10) * 2 * s : Math.sin(t * 2) * 1 * s;
-    ctx.save(); ctx.translate(0, bob);
+    const bob = moving && !dy ? Math.sin(t * 10) * 2 * s : Math.sin(t * 2) * 1 * s;
+    ctx.save();
+    ctx.translate(0, bob + dy);
+    if (anim && anim.lean) {
+      ctx.translate(0, y - 34 * s);
+      ctx.rotate(anim.lean);
+      ctx.translate(0, -(y - 34 * s));
+    }
     // cloak — deep dyed wool with a lit fold catching firelight
     const tier = kit ? (kit.armor ? kit.armor.id : 0) : 0;
     ctx.fillStyle = battle ? PAL.blood : (tier >= 2 ? "#3a5a74" : PAL.aegean);
@@ -275,9 +288,61 @@ export function drawOdysseus(ctx, x, y, s, dir, t, battle = false, moving = fals
     ctx.beginPath(); ctx.moveTo(11 * s, y - 79 * s);
     ctx.quadraticCurveTo(16 * s, y - 70 * s, 13 * s, y - 58 * s); ctx.stroke();
     ctx.lineCap = "butt";
-    // sword at hip (upgrades glint brighter)
-    ctx.strokeStyle = tier >= 2 ? PAL.bronzeBright : PAL.bronze; ctx.lineWidth = 3 * s;
-    ctx.beginPath(); ctx.moveTo(6 * s, y - 44 * s); ctx.lineTo(16 * s, y - 34 * s); ctx.stroke();
+    // sword / spear weapon rendering: active strike arm OR sheathed hip blade
+    const swTier = kit && kit.sword ? kit.sword.id : 1;
+    const bladeCol = swTier >= 3 ? "#fff3a6" : swTier >= 2 ? PAL.bronzeBright : "#d8dde8";
+    if (anim && (anim.attackType === "slash" || anim.attackType === "uppercut" || anim.attackType === "spin")) {
+      ctx.save();
+      ctx.translate(10 * s, y - 56 * s);
+      ctx.rotate(anim.bladeAngle || 0);
+      // arm reaching out
+      ctx.strokeStyle = skin; ctx.lineWidth = 4.2 * s; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(14 * s, -2 * s); ctx.stroke();
+      // bronze guard & grip
+      ctx.fillStyle = PAL.bronze;
+      ctx.fillRect(12 * s, -7 * s, 3 * s, 10 * s);
+      // Greek xiphos leaf blade
+      ctx.fillStyle = bladeCol;
+      ctx.beginPath();
+      ctx.moveTo(15 * s, -4 * s);
+      ctx.lineTo(44 * s, -5 * s);
+      ctx.lineTo(52 * s, -2 * s);
+      ctx.lineTo(44 * s, 1 * s);
+      ctx.lineTo(15 * s, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.2 * s;
+      ctx.beginPath(); ctx.moveTo(17 * s, -3 * s); ctx.lineTo(48 * s, -2 * s); ctx.stroke();
+      ctx.restore();
+    } else if (anim && anim.attackType === "spear") {
+      ctx.save();
+      ctx.translate(6 * s, y - 54 * s);
+      ctx.rotate(anim.bladeAngle || -0.06);
+      // ash spear shaft + leaf bronze head
+      ctx.strokeStyle = "#6e4b25"; ctx.lineWidth = 3.2 * s; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(-26 * s, 2 * s); ctx.lineTo(52 * s, -2 * s); ctx.stroke();
+      ctx.fillStyle = PAL.bronzeBright;
+      ctx.beginPath();
+      ctx.moveTo(52 * s, -5 * s); ctx.lineTo(66 * s, -2 * s); ctx.lineTo(52 * s, 1 * s);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else {
+      // sword at hip (upgrades glint brighter)
+      ctx.strokeStyle = tier >= 2 ? PAL.bronzeBright : PAL.bronze; ctx.lineWidth = 3 * s;
+      ctx.beginPath(); ctx.moveTo(6 * s, y - 44 * s); ctx.lineTo(16 * s, y - 34 * s); ctx.stroke();
+    }
+    // raised Argive bronze shield during guard / block / parry
+    if (anim && anim.shield) {
+      ctx.save();
+      ctx.translate(15 * s, y - 56 * s);
+      ctx.fillStyle = anim.parry ? "#fff3a6" : PAL.bronze;
+      ctx.beginPath(); ctx.ellipse(0, 0, 7.5 * s, 18 * s, 0.08, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = anim.parry ? "#ffffff" : PAL.bronzeBright; ctx.lineWidth = 2.4 * s;
+      ctx.stroke();
+      ctx.fillStyle = PAL.blood;
+      ctx.beginPath(); ctx.arc(0, 0, 4.5 * s, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
     // bow across the back (only when actually equipped)
     if (kit && kit.bow && kit.bow.power > 0) {
       ctx.strokeStyle = "#6b4a26"; ctx.lineWidth = 2.4 * s;
@@ -294,7 +359,8 @@ export function drawOdysseus(ctx, x, y, s, dir, t, battle = false, moving = fals
     ctx.beginPath(); ctx.arc(b.headX + 3 * s, b.headY, 9.5 * s, -1.2, 0.9); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(10 * s, y - 64 * s); ctx.lineTo(13 * s, y - 52 * s); ctx.stroke();
     ctx.restore();
-  });
+  })();
+  ctx.restore();
 }
 
 /** AGAMEMNON — High King of Mycenae: dark Corinthian helm, charcoal armor, gold medallions, commanding presence */
@@ -335,7 +401,7 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     const ink = PAL.ink;
 
     // ── DARK CAMPAIGN CAPE — deep charcoal/navy, heavy fabric ──
-    ctx.fillStyle = "#1c1e2a";
+    ctx.fillStyle = "#1c1e2a"; // near-black slate blue
     ctx.beginPath();
     ctx.moveTo(-4 * s, y - 68 * s);
     ctx.quadraticCurveTo(-42 * s, y - 48 * s, -38 * s, y - 2 * s);
@@ -344,6 +410,7 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.closePath();
     ctx.fill();
 
+    // Cape shadow folds
     ctx.strokeStyle = "rgba(10,10,18,0.7)";
     ctx.lineWidth = 1.4 * s;
     ctx.beginPath();
@@ -355,10 +422,11 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.quadraticCurveTo(-32 * s, y - 30 * s, -30 * s, y - 14 * s);
     ctx.stroke();
 
+    // ── BODY ──
     _body(ctx, y, s * 1.14, PAL.sand, ink);
 
-    // ── DARK STEEL CUIRASS ──
-    ctx.fillStyle = "#2a2d35";
+    // ── DARK STEEL CUIRASS — charcoal-black plate armor ──
+    ctx.fillStyle = "#2a2d35"; // dark steel
     ctx.beginPath();
     ctx.moveTo(-11 * s, y - 63 * s);
     ctx.lineTo(13 * s, y - 63 * s);
@@ -367,22 +435,32 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.closePath();
     ctx.fill();
 
+    // Steel plate highlights (subtle edge catches)
     ctx.strokeStyle = "rgba(80,90,110,0.5)";
     ctx.lineWidth = 1 * s;
-    ctx.beginPath(); ctx.moveTo(-9 * s, y - 63 * s); ctx.lineTo(-9 * s, y - 33 * s); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(11 * s, y - 63 * s); ctx.lineTo(11 * s, y - 33 * s); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-9 * s, y - 63 * s);
+    ctx.lineTo(-9 * s, y - 33 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(11 * s, y - 63 * s);
+    ctx.lineTo(11 * s, y - 33 * s);
+    ctx.stroke();
 
-    // ── GOLD LION MEDALLIONS ──
+    // ── GOLD LION MEDALLIONS on chest (3 bosses like reference) ──
     const medalPos = [
       [0, y - 56 * s, 5.8 * s],
       [-6 * s, y - 46 * s, 5.2 * s],
       [6.5 * s, y - 46 * s, 5.0 * s],
     ];
     for (const [mx, my, mr] of medalPos) {
+      // outer bronze ring
       ctx.fillStyle = "#8a6520";
       ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+      // bright gold face
       ctx.fillStyle = PAL.bronzeBright;
       ctx.beginPath(); ctx.arc(mx, my, mr * 0.72, 0, Math.PI * 2); ctx.fill();
+      // engraved lion face (cross-hatch suggestion)
       ctx.strokeStyle = "#5a3c08"; ctx.lineWidth = 0.9 * s;
       ctx.beginPath(); ctx.arc(mx, my, mr * 0.42, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath();
@@ -391,39 +469,53 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
       ctx.stroke();
     }
 
+    // Shoulder pauldron (rounded dark steel)
     ctx.fillStyle = "#242830";
     ctx.beginPath(); ctx.arc(-9 * s, y - 65 * s, 7 * s, 0, Math.PI * 2); ctx.fill();
+    // Gold boss on pauldron
     ctx.fillStyle = "#9a7028";
     ctx.beginPath(); ctx.arc(-9 * s, y - 65 * s, 3.5 * s, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = PAL.bronzeBright;
     ctx.beginPath(); ctx.arc(-9 * s, y - 65 * s, 2 * s, 0, Math.PI * 2); ctx.fill();
 
-    // ── CORINTHIAN HELM ──
-    ctx.fillStyle = "#1e2128";
+    // ── CORINTHIAN HELM — dark, face-covering, imposing ──
+    // Cheek guards extending down, nasal bar
+    ctx.fillStyle = "#1e2128"; // near-black dark steel
     ctx.beginPath();
-    ctx.moveTo(-13 * s, y - 70 * s);
-    ctx.lineTo(-15 * s, y - 78 * s);
-    ctx.arc(1 * s, y - 82 * s, 14 * s, Math.PI * 0.8, Math.PI * 0.15, false);
-    ctx.lineTo(14 * s, y - 78 * s);
-    ctx.lineTo(12 * s, y - 70 * s);
+    // Full Corinthian bell — wide base tapering to neck
+    ctx.moveTo(-13 * s, y - 70 * s);   // left cheek guard bottom
+    ctx.lineTo(-15 * s, y - 78 * s);   // cheek guard upper
+    ctx.arc(1 * s, y - 82 * s, 14 * s, Math.PI * 0.8, Math.PI * 0.15, false); // crown arc
+    ctx.lineTo(14 * s, y - 78 * s);    // right cheek guard upper
+    ctx.lineTo(12 * s, y - 70 * s);    // right cheek guard bottom
     ctx.quadraticCurveTo(8 * s, y - 67 * s, 1 * s, y - 68 * s);
     ctx.quadraticCurveTo(-6 * s, y - 67 * s, -13 * s, y - 70 * s);
     ctx.closePath();
     ctx.fill();
 
+    // Nasal bar (central vertical bar, hallmark of Corinthian helm)
     ctx.fillStyle = "#161820";
     ctx.fillRect(-1.8 * s, y - 79 * s, 3.6 * s, 10 * s);
 
+    // Eye opening — narrow and shadowed
     ctx.fillStyle = "rgba(5,3,2,0.88)";
-    ctx.beginPath(); ctx.ellipse(-5 * s, y - 77 * s, 4 * s, 2.4 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(7 * s, y - 77 * s, 4 * s, 2.4 * s, 0, 0, Math.PI * 2); ctx.fill();
+    // Left eye socket
+    ctx.beginPath();
+    ctx.ellipse(-5 * s, y - 77 * s, 4 * s, 2.4 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Right eye socket
+    ctx.beginPath();
+    ctx.ellipse(7 * s, y - 77 * s, 4 * s, 2.4 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
 
+    // Subtle steel highlights on helm (rim edge catch)
     ctx.strokeStyle = "rgba(90,100,120,0.45)";
     ctx.lineWidth = 1.6 * s;
     ctx.beginPath();
     ctx.arc(1 * s, y - 82 * s, 13.4 * s, Math.PI * 0.85, Math.PI * 0.12, false);
     ctx.stroke();
 
+    // Gold trim at helm base / browline
     ctx.strokeStyle = "#7a5810";
     ctx.lineWidth = 1.8 * s;
     ctx.beginPath();
@@ -431,10 +523,14 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.quadraticCurveTo(0 * s, y - 74 * s, 13 * s, y - 72 * s);
     ctx.stroke();
 
-    // ── HORSEHAIR CREST ──
+    // ── HORSEHAIR CREST — tall, dense, black with dark blue ──
+    // Crest holder (bronze ridge along top of helm)
     ctx.fillStyle = "#8a6520";
-    ctx.beginPath(); ctx.ellipse(1 * s, y - 95 * s, 3 * s, 1.5 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(1 * s, y - 95 * s, 3 * s, 1.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
 
+    // Dense tall plume — black horsehair sweeping back
     ctx.strokeStyle = "#0d0d12";
     ctx.lineWidth = 9 * s;
     ctx.lineCap = "round";
@@ -443,6 +539,7 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.quadraticCurveTo(6 * s, y - 132 * s, 22 * s, y - 106 * s);
     ctx.stroke();
 
+    // Secondary inner plume — dark charcoal
     ctx.strokeStyle = "#1a1a24";
     ctx.lineWidth = 5 * s;
     ctx.beginPath();
@@ -450,6 +547,7 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.quadraticCurveTo(9 * s, y - 134 * s, 26 * s, y - 104 * s);
     ctx.stroke();
 
+    // Wispy plume tips
     ctx.strokeStyle = "#2a2a38";
     ctx.lineWidth = 2.5 * s;
     ctx.beginPath();
@@ -461,7 +559,7 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.quadraticCurveTo(26 * s, y - 120 * s, 32 * s, y - 108 * s);
     ctx.stroke();
 
-    // ── SPEAR ──
+    // ── SPEAR — lean dark shaft, bronze tip ──
     ctx.strokeStyle = "#38240e";
     ctx.lineWidth = 2.8 * s;
     ctx.lineCap = "round";
@@ -469,6 +567,7 @@ export function drawAgamemnon(ctx, x, y, s, dir, t, aura = 0) {
     ctx.moveTo(15 * s, y + 2 * s);
     ctx.lineTo(18 * s, y - 100 * s);
     ctx.stroke();
+    // Bronze spearhead
     ctx.fillStyle = PAL.bronze;
     ctx.beginPath();
     ctx.moveTo(18 * s, y - 108 * s);
@@ -509,50 +608,67 @@ export function drawSoldier(ctx, x, y, s, dir, t, moving = false) {
 }
 
 /** POLYPHEMUS — one-eyed giant, club. eyeGlow = exposure 0..1 */
-export function drawCyclops(ctx, x, y, s, dir, t, state = "idle", eyeGlow = 0) {
+export function drawCyclops(ctx, x, y, s, dir, t, state = "idle", eyeGlow = 0, opts = null) {
   _flip(ctx, x, dir, () => {
-    const skin = "#a8714a", tint = "#2c1a0e";
-    const breathe = Math.sin(t * 2) * 2 * s;
+    const flash = opts && opts.hitFlash > 0;
+    const kneel = (state === "stagger" || state === "expose" || state === "kneel") ? 22 * s : 0;
+    const jitter = state === "stagger" ? Math.sin(t * 36) * 3 * s : 0;
+    const lean = state === "charge" ? 0.16 : state === "windup" ? -0.1 : state === "stagger" ? 0.14 : 0;
+    const skin = flash ? "#f7d4b2" : "#a8714a", tint = "#2c1a0e";
+    const breathe = kneel ? Math.sin(t * 7) * 2 * s : Math.sin(t * 2) * 2 * s;
+    ctx.save();
+    ctx.translate(jitter, 0);
+    if (lean) {
+      ctx.translate(0, y - 40 * s);
+      ctx.rotate(lean);
+      ctx.translate(0, -(y - 40 * s));
+    }
     // legs
     ctx.strokeStyle = tint; ctx.lineWidth = 22 * s; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(-6 * s, y - 60 * s); ctx.lineTo(-18 * s, y - 30 * s); ctx.lineTo(-16 * s, y - 4 * s); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(10 * s, y - 60 * s); ctx.lineTo(22 * s, y - 30 * s); ctx.lineTo(24 * s, y - 4 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6 * s, y - 60 * s + kneel * 0.7); ctx.lineTo(-18 * s, y - 30 * s + kneel * 0.4); ctx.lineTo(-16 * s, y - 4 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(10 * s, y - 60 * s + kneel * 0.7); ctx.lineTo(22 * s, y - 30 * s + kneel * 0.4); ctx.lineTo(24 * s, y - 4 * s); ctx.stroke();
     // torso
     ctx.fillStyle = skin;
     ctx.beginPath();
-    ctx.moveTo(-26 * s, y - 100 * s + breathe);
-    ctx.quadraticCurveTo(-34 * s, y - 60 * s, -20 * s, y - 48 * s);
-    ctx.lineTo(26 * s, y - 48 * s);
-    ctx.quadraticCurveTo(38 * s, y - 66 * s, 30 * s, y - 100 * s + breathe);
+    ctx.moveTo(-26 * s, y - 100 * s + breathe + kneel);
+    ctx.quadraticCurveTo(-34 * s, y - 60 * s + kneel * 0.7, -20 * s, y - 48 * s + kneel * 0.6);
+    ctx.lineTo(26 * s, y - 48 * s + kneel * 0.6);
+    ctx.quadraticCurveTo(38 * s, y - 66 * s + kneel * 0.7, 30 * s, y - 100 * s + breathe + kneel);
     ctx.closePath(); ctx.fill();
     // detail lines (pottery style)
     ctx.strokeStyle = "rgba(33,22,11,0.6)"; ctx.lineWidth = 2 * s;
-    ctx.beginPath(); ctx.moveTo(-18 * s, y - 80 * s); ctx.quadraticCurveTo(0, y - 72 * s, 20 * s, y - 80 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-18 * s, y - 80 * s + kneel); ctx.quadraticCurveTo(0, y - 72 * s + kneel, 20 * s, y - 80 * s + kneel); ctx.stroke();
     // head
+    const hy = y - 116 * s + breathe + kneel;
     ctx.fillStyle = skin;
-    ctx.beginPath(); ctx.arc(6 * s, y - 116 * s + breathe, 17 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6 * s, hy, 17 * s, 0, Math.PI * 2); ctx.fill();
+    // roaring jaw during windup / roar / stagger
+    if (state === "windup" || state === "roar" || state === "stagger") {
+      ctx.fillStyle = "#3a0e0e";
+      ctx.beginPath(); ctx.ellipse(10 * s, hy + 10 * s, 7 * s, 4.5 * s, 0, 0, Math.PI * 2); ctx.fill();
+    }
     // single eye — the weak point
-    const ex = 12 * s, ey = y - 120 * s + breathe;
+    const ex = 12 * s, ey = hy - 4 * s;
     if (eyeGlow > 0) {
-      const g = ctx.createRadialGradient(ex, ey, 1, ex, ey, 16 * s * eyeGlow);
-      g.addColorStop(0, "rgba(245,197,107,0.95)");
+      const g = ctx.createRadialGradient(ex, ey, 1, ex, ey, 18 * s * Math.max(0.5, eyeGlow));
+      g.addColorStop(0, "rgba(255,190,70,0.95)");
       g.addColorStop(1, "rgba(245,197,107,0)");
       ctx.fillStyle = g;
-      ctx.fillRect(ex - 20 * s, ey - 20 * s, 40 * s, 40 * s);
+      ctx.fillRect(ex - 22 * s, ey - 22 * s, 44 * s, 44 * s);
     }
-    ctx.fillStyle = PAL.bone;
-    ctx.beginPath(); ctx.arc(ex, ey, 6.5 * s, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = eyeGlow > 0.4 ? PAL.blood : PAL.ink;
-    ctx.beginPath(); ctx.arc(ex, ey, 2.6 * s + eyeGlow * 1.6 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = opts && opts.blinded ? "#9e4a38" : PAL.bone;
+    ctx.beginPath(); ctx.arc(ex, ey, 6.8 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = (eyeGlow > 0.4 || state === "charge" || state === "windup") ? PAL.blood : PAL.ink;
+    ctx.beginPath(); ctx.arc(ex, ey, 2.8 * s + eyeGlow * 1.6 * s, 0, Math.PI * 2); ctx.fill();
     // horn + messy hair
     ctx.fillStyle = tint;
-    ctx.beginPath(); ctx.arc(0, y - 130 * s + breathe, 12 * s, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, hy - 14 * s, 12 * s, Math.PI, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = tint; ctx.lineWidth = 3 * s;
-    ctx.beginPath(); ctx.moveTo(-6 * s, y - 128 * s); ctx.lineTo(-12 * s, y - 138 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6 * s, hy - 12 * s); ctx.lineTo(-12 * s, hy - 22 * s); ctx.stroke();
     // arm + club
-    const swing = state === "windup" ? -1.9 : state === "swing" ? 0.7 : -0.5 + Math.sin(t * 2) * 0.12;
+    const swing = state === "windup" ? -2.05 : state === "swing" ? 0.85 : state === "stagger" ? 1.25 : state === "charge" ? -0.35 : -0.5 + Math.sin(t * 2) * 0.12;
     ctx.save();
-    ctx.translate(20 * s, y - 90 * s + breathe);
+    ctx.translate(20 * s, y - 90 * s + breathe + kneel);
     ctx.rotate(swing);
     ctx.strokeStyle = skin; ctx.lineWidth = 14 * s;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(26 * s, 12 * s); ctx.stroke();
@@ -566,9 +682,14 @@ export function drawCyclops(ctx, x, y, s, dir, t, state = "idle", eyeGlow = 0) {
     ctx.fillStyle = PAL.bronze;
     ctx.beginPath(); ctx.arc(74 * s, 10 * s, 9 * s, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-    // other arm
+    // other arm (clutches eye when staggered!)
     ctx.strokeStyle = skin; ctx.lineWidth = 13 * s;
-    ctx.beginPath(); ctx.moveTo(-14 * s, y - 88 * s); ctx.lineTo(-30 * s, y - 62 * s); ctx.stroke();
+    if (state === "stagger") {
+      ctx.beginPath(); ctx.moveTo(-14 * s, y - 88 * s + kneel); ctx.lineTo(4 * s, hy + 2 * s); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.moveTo(-14 * s, y - 88 * s + kneel); ctx.lineTo(-30 * s, y - 62 * s + kneel); ctx.stroke();
+    }
+    ctx.restore();
   });
 }
 

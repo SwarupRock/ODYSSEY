@@ -116,41 +116,78 @@ h1, h2, h3 { font-weight: 700; }
 #action-buttons {
   position: absolute;
   right: max(14px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  display: flex; gap: 14px; align-items: flex-end;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex; gap: 10px; align-items: flex-end;
   pointer-events: auto;
 }
+.tbtn-arc {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 8px;
+  align-items: center;
+  justify-items: center;
+}
 .tbtn {
-  width: 17vmin; height: 17vmin; max-width: 84px; max-height: 84px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px;
+  width: 17vmin; height: 17vmin; max-width: 80px; max-height: 80px;
   border-radius: 50%;
   border: 2px solid rgba(201,151,63,0.85);
   background:
     radial-gradient(circle at 32% 26%, rgba(236,223,195,0.18), transparent 55%),
     radial-gradient(circle at 50% 125%, rgba(201,151,63,0.30), transparent 60%),
-    rgba(26,16,8,0.66);
+    rgba(26,16,8,0.70);
   color: var(--bone);
   font-family: var(--font-title);
-  font-size: clamp(13px, 3.4vmin, 17px);
-  letter-spacing: 0.08em;
+  font-size: clamp(13px, 3.2vmin, 17px);
+  letter-spacing: 0.06em;
+  line-height: 1.05;
   touch-action: none;
   user-select: none; -webkit-user-select: none;
   box-shadow: inset 0 0 18px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.5),
     0 0 0 1px rgba(0,0,0,0.5);
-  transition: transform 0.08s ease, box-shadow 0.15s ease;
+  transition: transform 0.08s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
+.tbtn span {
+  font-size: clamp(7px, 1.5vmin, 9px);
+  letter-spacing: 0.1em;
+  opacity: 0.92;
+}
+.tbtn-main {
+  width: 18.5vmin; height: 18.5vmin; max-width: 86px; max-height: 86px;
+  border-color: #f2a23a;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255,215,150,0.22), transparent 55%),
+    radial-gradient(circle at 50% 125%, rgba(190,64,42,0.45), transparent 62%),
+    rgba(32,14,10,0.78);
+}
+.tbtn-sm {
+  width: 12.8vmin; height: 12.8vmin; max-width: 58px; max-height: 58px;
+  font-size: clamp(13px, 2.8vmin, 16px);
+}
+.tbtn-combat { display: none; }
+#action-buttons.combat-on .tbtn-combat { display: flex; }
+#btn-upper { border-color: #ff9d3b; color: #ffe38a; }
+#btn-spin  { border-color: #62c8f4; color: #c8f0ff; }
+#btn-spear { border-color: #e6c069; color: #fff0c2; }
+#btn-block { border-color: #9ec7d9; color: #e2f2fa; }
+#btn-dash  { border-color: #b8c9e8; color: #f0f6ff; }
 #btn-bow {
   color: #ffd27a;
   text-shadow: 0 0 10px rgba(255,190,90,0.4);
 }
 #btn-dodge {
   color: var(--bronze-bright);
-  font-size: clamp(11px, 2.8vmin, 15px);
+}
+.tbtn.cd {
+  opacity: 0.45;
+  filter: grayscale(0.35);
 }
 .tbtn.pressed {
-  background: radial-gradient(circle at 50% 40%, rgba(190,64,42,0.8), rgba(142,47,37,0.5));
+  background: radial-gradient(circle at 50% 40%, rgba(190,64,42,0.85), rgba(142,47,37,0.55));
   border-color: var(--bronze-bright);
-  transform: scale(0.92);
-  box-shadow: 0 0 20px rgba(230,192,105,0.3), inset 0 0 14px rgba(0,0,0,0.5);
+  transform: scale(0.90);
+  box-shadow: 0 0 22px rgba(230,192,105,0.4), inset 0 0 14px rgba(0,0,0,0.5);
 }
 
 /* controls are always on in-game now — discoverable, and the
@@ -158,13 +195,9 @@ h1, h2, h3 { font-weight: 700; }
 #touch-controls { display: block; }
 #touch-controls.hidden { display: none !important; }
 
-/* while dialogue is open the controls step back (suppressed
-   from touches so background actions cannot be triggered) */
-body.dlg-open #touch-controls {
-  opacity: 0.22;
-  pointer-events: none !important;
-  transition: opacity 0.3s ease;
-}
+/* while dialogue is open the controls step back (still tappable
+   for the stick, but visually out of the text's way) */
+body.dlg-open #touch-controls { opacity: 0.22; transition: opacity 0.3s ease; }
 #touch-controls { transition: opacity 0.3s ease; }
 
 /* persistent gear chip (armor · sword · bow) */
@@ -1007,4 +1040,142 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 
 @media (min-width: 900px) {
   #dialogue { width: 560px; }
+}
+
+/* ============================================================
+   IN-APP LIVE UPDATE NOTIFICATION & MANDATORY LOCKOUT
+   ============================================================ */
+.btn-stone.btn-locked,
+.btn-stone:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.6);
+}
+.home-update-alert {
+  margin: 0 auto 10px;
+  padding: 6px 14px;
+  max-width: 440px;
+  background: rgba(142, 47, 37, 0.72);
+  border: 1px solid #f2a23a;
+  border-radius: 6px;
+  color: #fff3d6;
+  font-family: var(--font-title);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.update-strip {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--bone-dim);
+  opacity: 0.9;
+}
+.us-btn {
+  background: rgba(201, 151, 63, 0.16);
+  border: 1px solid rgba(201, 151, 63, 0.55);
+  color: var(--bronze-bright);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: var(--font-title);
+  letter-spacing: 0.05em;
+}
+.us-btn:active { transform: scale(0.95); }
+.update-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 6, 4, 0.86);
+  backdrop-filter: blur(4px);
+  padding: 16px;
+}
+.update-card {
+  width: min(92vw, 440px);
+  background: radial-gradient(circle at 50% 15%, rgba(74, 38, 18, 0.92), rgba(20, 12, 8, 0.98));
+  border: 2px solid var(--bronze);
+  border-radius: 10px;
+  padding: 18px 20px;
+  text-align: center;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.85), inset 0 0 28px rgba(0, 0, 0, 0.55);
+}
+.uc-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(190, 64, 42, 0.85);
+  color: #fff2cc;
+  font-family: var(--font-title);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.uc-title {
+  margin-top: 8px;
+  font-family: var(--font-title);
+  font-size: clamp(18px, 3.6vmin, 24px);
+  color: var(--bronze-bright);
+}
+.uc-ver {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--bone-dim);
+  letter-spacing: 0.08em;
+}
+.uc-notes {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(201, 151, 63, 0.3);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--bone);
+  line-height: 1.45;
+}
+.uc-btn {
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+}
+.uc-prog-wrap {
+  margin: 10px 0 6px;
+}
+.uc-prog-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(201, 151, 63, 0.5);
+  overflow: hidden;
+}
+.uc-prog-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #c9973f, #ffe26b);
+  transition: width 0.14s ease;
+}
+.uc-prog-label {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--bronze-bright);
+}
+.uc-error {
+  margin: 8px 0;
+  font-size: 12px;
+  color: #ff9a86;
+}
+.uc-lock-note {
+  margin: 12px 0 8px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--bone-dim);
 }

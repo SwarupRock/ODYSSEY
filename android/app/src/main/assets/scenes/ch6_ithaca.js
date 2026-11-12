@@ -14,6 +14,7 @@ import { Gear } from "../js/gear.js";
 import { Fx } from "../js/fx.js";
 import { Cinematic } from "../js/combat.js";
 import { MovementController } from "../js/movement.js";
+import { PixelVFX } from "../js/pixelvfx.js";
 import { Stick } from "../js/stick.js";
 
 export class Ch6Scene extends ChapterScene {
@@ -66,6 +67,7 @@ export class Ch6Scene extends ChapterScene {
     if (Gear.award("bow", 2)) {
       this.showGearChip();
       this.audio.sfx("reveal");
+      PixelVFX.spawn("pickups/loot-beam", this.playerX * this.engine.W, this.groundY() - 6, { palette: "apollo", scale: 2.0 });
       await this.say(
         { who: "NARRATOR", text: "The great bow is yours again — and the quiver that hung beside it in the old armory." },
         { who: "ODYSSEUS", text: "Twelve axes in a row once. Now the arrows find the men themselves." }
@@ -73,7 +75,10 @@ export class Ch6Scene extends ChapterScene {
     }
 
     this.phase = "volley";
+    Stick.setCombatMode(true);
     Stick.setDodgeVisible(true);
+    Stick.refreshBow();
+    this.guardT = 0; this.parryT = 0; this.moveCd = 0;
     this.setupVolley();
     this.objective("Move with <span class=\"kbd\">A</span>/<span class=\"kbd\">D</span> (or hold sides) — <span class=\"kbd\">A</span>/<span class=\"kbd\">D</span> again to dodge the volleys");
   }
@@ -98,6 +103,9 @@ export class Ch6Scene extends ChapterScene {
   tickVolley(dt, timing = {}) {
     const W = this.engine.W;
     this.updatePlayerMovement(dt, timing, 0.3, 0.08, 0.72);
+    const kbd = this.engine.axisX();
+    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.3;
+    this.playerX = Math.max(0.08, Math.min(0.72, this.playerX));
 
     this.volleySurvive -= dt;
     if (this.volleySurvive <= 0) {
@@ -122,7 +130,9 @@ export class Ch6Scene extends ChapterScene {
     this.tickArrows(dt, throwerColliders, (t) => {
       this.throwers[t.slot] = false;
       this.volleySurvive -= 2.5;
-      this.burst(W * (0.85 + t.slot * 0.05), this.groundY() - 60, PAL.blood, 55, 4);
+      const tx = W * (0.85 + t.slot * 0.05), ty = this.groundY() - 55;
+      PixelVFX.spawn("spawn/poof", tx, ty, { palette: "blood", scale: 1.7 });
+      this.burst(tx, this.groundY() - 60, PAL.blood, 55, 4);
       this.note("A thrower drops — the volley falters sooner!");
       return true;
     });
@@ -134,9 +144,12 @@ export class Ch6Scene extends ChapterScene {
       const sx = v.x * W;
       const px = this.playerX * W;
       // a jar shatters when it reaches its aim point — it only hurts if you are still standing there
-      if (!v.hit && Math.abs(sx - v.targetX * W) < 26 && Math.abs(px - v.targetX * W) < 26) {
+      if (!v.hit && Math.abs(sx - v.targetX * W) < 26) {
         v.hit = true;
-        this.damage();
+        PixelVFX.spawn("impacts/blunt-hit", sx, this.groundY() - 36, { palette: "bronze", scale: 1.4 });
+        if (Math.abs(px - v.targetX * W) < 26 && !this.controller.isInvulnerable()) {
+          this.damage();
+        }
       }
     }
     this.volley = this.volley.filter((v) => v.x > -0.1 && !v.hit);
@@ -150,6 +163,9 @@ export class Ch6Scene extends ChapterScene {
       const W = this.engine.W;
       Fx.spawnEmbers(W * (0.17 + Math.random() * 0.66), this.groundY() - this.engine.H * 0.18, 2, 12);
     }
+    if (this.guardT > 0) this.guardT = Math.max(0, this.guardT - dt);
+    if (this.parryT > 0) this.parryT = Math.max(0, this.parryT - dt);
+    if (this.moveCd > 0) this.moveCd = Math.max(0, this.moveCd - dt);
     if (this.phase === "volley") this.tickVolley(dt, timing);
     else if (this.phase === "wave") this.tickWave(dt, timing);
     else if (this.phase === "duel") this.tickDuel(dt, timing);
@@ -166,6 +182,8 @@ export class Ch6Scene extends ChapterScene {
     this.playerX = this.controller.updateHorizontal(this.playerX, axisX, dt, {
       hitStop: timing.hitStop,
     });
+    if (Math.abs(axisX) > 0.05) this.facing = axisX > 0 ? 1 : -1;
+    this.aimDir = this.facing;
   }
 
   endVolley() {
@@ -211,7 +229,7 @@ export class Ch6Scene extends ChapterScene {
         e.t += dt;
         if (e.t > 0.35) {
           e.state = "approach";
-          if (Math.abs(e.x - this.playerX) < 0.12) this.damage();
+          if (Math.abs(e.x - this.playerX) < 0.12 && !this.controller.isInvulnerable()) this.damage();
           e.x += 0.05;
         }
       }
@@ -222,6 +240,7 @@ export class Ch6Scene extends ChapterScene {
     // arrows kill suitors at range
     this.tickArrows(dt, this.enemies.map((e) => ({ x: e.x * this.engine.W, r: 36, ref: e })), (e) => {
       e.hp = 0;
+      PixelVFX.spawn("spawn/poof", e.x * this.engine.W, this.groundY() - 40, { palette: "blood", scale: 1.65 });
       this.burst(e.x * this.engine.W, this.groundY() - 40, PAL.blood, 50, 4);
       return true;
     });
@@ -249,11 +268,12 @@ export class Ch6Scene extends ChapterScene {
       if (inReach.length) {
         const cleave = kit.sword.power >= 4;
         const sx = this.playerX * this.engine.W, sy = this.groundY() - 52;
-        Cinematic.slash(sx + this.facing * 26, sy, this.facing, cleave);
+        Cinematic.slash(sx + this.facing * 26, sy, this.facing, cleave, kit.sword.id);
         this.engine.hitStop(cleave ? 0.13 : 0.08);
         for (const e of (cleave ? inReach : [inReach[0]])) {
           e.hp = 0;
           Cinematic.impact(e.x * this.engine.W, this.groundY() - 42, PAL.blood, false);
+          PixelVFX.spawn("spawn/poof", e.x * this.engine.W, this.groundY() - 42, { palette: "blood", scale: 1.6 });
           this.burst(e.x * this.engine.W, this.groundY() - 40, PAL.blood, 50, 4);
         }
         this.audio.sfx("sword");
@@ -275,9 +295,23 @@ export class Ch6Scene extends ChapterScene {
   }
 
   damage() {
-    if (this.controller.isInvulnerable()) return false;
+    const px = this.playerX * this.engine.W, gy = this.groundY();
+    if (this.parryT > 0) {
+      this.parryT = 0; this.guardT = 0;
+      Cinematic.performMove("parry", px, gy, this.facing, { engine: this.engine });
+      this.audio.sfx("block"); this.audio.sfx("sword");
+      this.engine.hitStop(0.12);
+      this.note("⚡ PERFECT PARRY!");
+      return;
+    }
+    if (this.guardT > 0) {
+      Cinematic.performMove("block", px, gy, this.facing, { engine: this.engine });
+      this.audio.sfx("block");
+      this.note("Shielded!");
+      return;
+    }
     // armor gets its say first (Aegis can turn a cup or a sword entirely)
-    if (this.hitPlayer(this.playerX * this.engine.W, this.groundY() - 40) === "blocked") return false;
+    if (this.hitPlayer(px, gy - 40) === "blocked") return;
     Fx.hit();
     this.hp--;
     HUD.health(this.hp);
@@ -285,7 +319,6 @@ export class Ch6Scene extends ChapterScene {
     this.engine.shake(1.6);
     this.burst(this.playerX * this.engine.W, this.groundY() - 40, PAL.blood, 60, 5);
     if (this.hp <= 0) this.knockedDown();
-    return true;
   }
 
   async knockedDown() {
@@ -337,6 +370,8 @@ export class Ch6Scene extends ChapterScene {
           d.phase = "lungeWind";
           d.timer = 0.65;
           this.audio.sfx("roar");
+          PixelVFX.spawn("ui/exclamation", 0.74 * this.engine.W, this.groundY() - 108, { palette: "blood", scale: 1.6 });
+          PixelVFX.spawn("status/rage", 0.74 * this.engine.W, this.groundY() - 62, { palette: "blood", scale: 1.5 });
         }
         break;
       case "lungeWind":
@@ -350,7 +385,7 @@ export class Ch6Scene extends ChapterScene {
       case "lunge":
         d.timer -= dt;
         if (d.timer <= 0) {
-          if (dist < 0.3) this.damage();
+          if (dist < 0.3 && !this.controller.isInvulnerable()) this.damage();
           d.phase = "recover";
           d.timer = 0.9;
           this.audio.sfx("thud");
@@ -397,7 +432,7 @@ export class Ch6Scene extends ChapterScene {
       if (pip) pip.classList.add("on");
       const fill = document.getElementById("bb-fill");
       if (fill) fill.style.width = 100 - (d.staggers / 5) * 100 + "%";
-      Cinematic.slash(0.74 * this.engine.W - 30, this.groundY() - 60, 1, true);
+      Cinematic.slash(0.74 * this.engine.W - 30, this.groundY() - 60, 1, true, Gear.kit().sword.id);
       Cinematic.impact(0.74 * this.engine.W, this.groundY() - 52, PAL.bronzeBright, true);
       this.engine.hitStop(0.14);
       this.audio.sfx("sword");
@@ -405,7 +440,11 @@ export class Ch6Scene extends ChapterScene {
       this.burst(0.74 * this.engine.W, this.groundY() - 50, PAL.bronzeBright, 60, 5);
       d.phase = "staggered";
       d.timer = 1.4;
-      if (d.staggers >= 5) this.victory();
+      if (d.staggers >= 5) {
+        PixelVFX.spawn("impacts/impact-frame", 0.74 * this.engine.W, this.groundY() - 56, { palette: "apollo", scale: 2.3 });
+        PixelVFX.spawn("impacts/ground-slam", 0.74 * this.engine.W, this.groundY(), { palette: "bronze", scale: 2.0 });
+        this.victory();
+      }
       else this.note(["He staggers!", "Blood on the marble!", "He swings wide — punish!", "Another blow!", "The last of it!"][d.staggers - 1]);
     } else if (d.phase === "recover") {
       this.note("Closer — step in and strike!");
@@ -419,33 +458,85 @@ export class Ch6Scene extends ChapterScene {
   }
 
   dodge(dir) {
-    if (this.state === "down" || this.phase === "won" || this.phase === "end-pan") return false;
-    if (this.phase !== "volley" && this.phase !== "wave" && this.phase !== "duel") return false;
-    if (!this.controller.dodge(dir)) return false;
-    this.audio.sfx("footstep");
-    return true;
-  }
-
-  onActionKey(k) {
-    if (k === "a" || k === "d") this.dodge(k === "a" ? -1 : 1);
-    if (k === "dodge") this.dodge(this.engine.axisX());
-    if (k === " " || k === "enter") this.handleTap();
-    if (k === "bow") {
-      this.shootBow({ x: this.playerX * this.engine.W + this.aimDir * 22, y: this.groundY() - 110, speed: 900 });
+    if (this.phase === "volley" || this.phase === "wave" || this.phase === "duel") {
+      if (!this.controller.dodge(dir)) return false;
+      Cinematic.dash(this.playerX * this.engine.W, this.groundY() - 12, dir);
+      this.audio.sfx("footstep");
+      return true;
     }
   }
 
   cleanup() {
-    this.controller?.resetDodge();
+    Stick.setCombatMode(false);
     Stick.setDodgeVisible(false);
-    Mech.hide();
+  }
+
+  heroMove(kind) {
+    if (this.phase !== "wave" && this.phase !== "duel" && this.phase !== "volley") return;
+    const W = this.engine.W, gy = this.groundY(), px = this.playerX * W;
+    const kit = Gear.kit();
+
+    if (kind === "block") {
+      this.guardT = 0.7; this.parryT = 0.28;
+      Stick.cooldown("btn-block", 500);
+      Cinematic.performMove("block", px, gy, this.facing, { swordTier: kit.sword.id, engine: this.engine });
+      this.audio.sfx("block");
+      return;
+    }
+
+    if (this.moveCd > 0) return;
+    this.moveCd = kind === "slash" ? 0.24 : 0.55;
+    if (kind === "uppercut") Stick.cooldown("btn-upper", 650);
+    if (kind === "spin") Stick.cooldown("btn-spin", 700);
+    if (kind === "spear") Stick.cooldown("btn-spear", 600);
+
+    Cinematic.performMove(kind, px, gy, this.facing, { swordTier: kit.sword.id, engine: this.engine });
+    this.audio.sfx("sword");
+
+    if (this.phase === "wave") {
+      const reach = kind === "spear" ? 0.23 : kind === "spin" ? 0.21 : 0.16 + kit.sword.power * 0.02;
+      const inReach = this.enemies.filter((en) => Math.abs(en.x - this.playerX) < reach);
+      const multi = kind === "spin" || kind === "spear" || kit.sword.power >= 4;
+      if (inReach.length) {
+        this.engine.hitStop(kind === "uppercut" || multi ? 0.11 : 0.07);
+        for (const e of (multi ? inReach : [inReach[0]])) {
+          e.hp = 0;
+          Cinematic.impact(e.x * W, gy - 48, kind === "uppercut" ? PAL.fireBright : PAL.blood, kind === "uppercut");
+          Cinematic.damageNumber(e.x * W, gy - 68, kind === "uppercut" ? 38 : 26, kind === "uppercut", inReach.length);
+          PixelVFX.spawn("spawn/poof", e.x * W, gy - 42, { palette: "blood", scale: 1.5 });
+        }
+        this.engine.shake(0.65);
+      }
+    } else if (this.phase === "duel") {
+      const d = this.duel;
+      if (d && (d.phase === "recover" || kind === "uppercut" || kind === "spear") && Math.abs(0.74 - this.playerX) < (kind === "spear" ? 0.28 : 0.23)) {
+        if (d.phase !== "recover") {
+          d.phase = "recover"; d.timer = 1.0;
+        }
+        this.duelStrike();
+      }
+    }
+  }
+
+  onActionKey(k) {
+    if (k === "a" || k === "d") this.dodge(k === "a" ? -1 : 1);
+    else if (k === "dodge") this.dodge(this.engine.axisX());
+    else if (k === "shift") this.dodge(this.facing || 1);
+    else if (k === "u") this.heroMove("uppercut");
+    else if (k === "k") this.heroMove("spin");
+    else if (k === "l") this.heroMove("spear");
+    else if (k === "f") this.heroMove("block");
+    else if (k === " " || k === "enter" || k === "j") this.heroMove("slash");
+    else if (k === "bow") {
+      this.shootBow({ x: this.playerX * this.engine.W + this.aimDir * 22, y: this.groundY() - 110, speed: 900 });
+    }
   }
 
   /* ---------------- ending ---------------- */
 
   async victory() {
     this.phase = "won";
-    Stick.setDodgeVisible(false);
+    Stick.setCombatMode(false);
     Mech.hide();
     this.objective(null);
     this.audio.sfx("flare");
@@ -533,6 +624,9 @@ export class Ch6Scene extends ChapterScene {
     drawTorch(ctx, W * 0.17, gy - H * 0.18, this.t, 60);
     drawTorch(ctx, W * 0.61, gy - H * 0.18, this.t * 1.07, 60);
     drawTorch(ctx, W * 0.83, gy - H * 0.18, this.t * 0.93, 60);
+    PixelVFX.drawLoop(ctx, "fire/brazier", W * 0.17, gy - H * 0.18 - 6, this.t, { palette: "fire", scale: 1.45, alpha: 0.9 });
+    PixelVFX.drawLoop(ctx, "fire/brazier", W * 0.61, gy - H * 0.18 - 6, this.t * 1.07 + 0.3, { palette: "fire", scale: 1.45, alpha: 0.9 });
+    PixelVFX.drawLoop(ctx, "fire/brazier", W * 0.83, gy - H * 0.18 - 6, this.t * 0.93 + 0.6, { palette: "fire", scale: 1.45, alpha: 0.9 });
 
     if (this.phase === "volley" || this.phase === "wave") {
       // volley throwers at the right edge (shootable — dead ones stop throwing)
@@ -576,10 +670,9 @@ export class Ch6Scene extends ChapterScene {
 
     // player
     if (this.phase !== "end-pan") {
-      if (!(this.controller.isDodging() && Math.floor(this.t * 20) % 2 === 0)) {
-        drawOdysseus(ctx, this.playerX * W, gy, 1.08, this.controller.facing, this.t, true, true, Gear.kit());
-        drawNameTag(ctx, this.playerX * W, gy - 86, "ODYSSEUS");
-      }
+      const heroPose = Cinematic.getHeroPose() || (this.guardT > 0 ? { shield: true } : null);
+      drawOdysseus(ctx, this.playerX * W, gy, 1.08, 1, this.t, true, true, Gear.kit(), heroPose);
+      drawNameTag(ctx, this.playerX * W, gy - 86 + (heroPose ? (heroPose.dy || 0) : 0), "ODYSSEUS");
       // bow arm while loosing, shield of the equipped armor at his side
       if ((this.phase === "volley" || this.phase === "wave" || this.phase === "duel") && this.bowCd > 0.18) {
         drawBow(ctx, this.playerX * W + this.aimDir * 16, gy - 44, this.aimDir, Math.min(1, this.bowCd * 2), this.t);
@@ -593,6 +686,8 @@ export class Ch6Scene extends ChapterScene {
 
     // Penelope appears at the end
     if (this.phase === "won") {
+      PixelVFX.drawLoop(ctx, "holy/blessing", W * 0.14, gy - 4, this.t * 0.85, { palette: "apollo", scale: 1.65, alpha: 0.72 });
+      PixelVFX.drawLoop(ctx, "weather/fireflies", W * 0.45, gy - H * 0.18, this.t * 0.8, { palette: "apollo", scale: 2.0, alpha: 0.75 });
       drawPenelope(ctx, W * 0.14, gy, 1.0, this.t);
       drawNameTag(ctx, W * 0.14, gy - 104, "PENELOPE");
     }
