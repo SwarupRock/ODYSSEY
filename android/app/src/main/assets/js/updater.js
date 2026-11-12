@@ -218,6 +218,13 @@ export const Updater = {
       const label = $("update-progress-label");
       if (fill) fill.style.width = "100%";
       if (label) label.textContent = "Update installed! Launching…";
+      try {
+        const cur = (typeof window !== "undefined" && window.__odysseyCurrentIdx !== undefined)
+          ? window.__odysseyCurrentIdx : -1;
+        if (cur >= 0) {
+          localStorage.setItem("odyssey-resume-after-update", String(cur));
+        }
+      } catch {}
       setTimeout(() => {
         if (window.AndroidUpdater && window.AndroidUpdater.reloadApp) {
           window.AndroidUpdater.reloadApp();
@@ -285,3 +292,4 @@ export const Updater = {
     }
   },
 };
+

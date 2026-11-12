@@ -1,9 +1,9 @@
 {
-  "version": "1.2.3",
-  "build": 5,
+  "version": "1.2.4",
+  "build": 6,
   "mandatory": true,
-  "hash": "5c8f1a3883f4",
-  "notes": "Chapter 4 Underworld: Human person shades for Greek dead, fixed joystick movement for Odysseus",
+  "hash": "ac1869b88d58",
+  "notes": "Ithaca bidirectional combat movement & retreats, dialogue ability click fix, enhanced Greek pottery loading experience, persistent save data",
   "baseUrl": "https://raw.githubusercontent.com/SwarupRock/ODYSSEY/main/",
   "files": [
     "audio/voices/091e5ea2.mp3",

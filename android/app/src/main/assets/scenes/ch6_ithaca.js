@@ -93,8 +93,12 @@ export class Ch6Scene extends ChapterScene {
   tickVolley(dt) {
     const W = this.engine.W;
     const kbd = this.engine.axisX();
-    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.3;
-    this.playerX = Math.max(0.08, Math.min(0.72, this.playerX));
+    if (Math.abs(kbd) > 0.05) {
+      this.facing = kbd > 0 ? 1 : -1;
+      this.aimDir = this.facing;
+      this.playerX += kbd * dt * 0.32;
+    }
+    this.playerX = Math.max(0.08, Math.min(0.80, this.playerX));
 
     this.volleySurvive -= dt;
     if (this.volleySurvive <= 0) {
@@ -187,6 +191,14 @@ export class Ch6Scene extends ChapterScene {
   }
 
   tickWave(dt) {
+    const kbd = this.engine.axisX();
+    if (Math.abs(kbd) > 0.05) {
+      this.facing = kbd > 0 ? 1 : -1;
+      this.aimDir = this.facing;
+      this.playerX += kbd * dt * 0.30;
+    }
+    this.playerX = Math.max(0.08, Math.min(0.80, this.playerX));
+
     for (const e of this.enemies) {
       if (e.state === "approach") {
         e.x -= e.speed * dt;
@@ -332,8 +344,12 @@ export class Ch6Scene extends ChapterScene {
   tickDuel(dt) {
     const d = this.duel;
     const kbd = this.engine.axisX();
-    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.28;
-    this.playerX = Math.max(0.1, Math.min(0.6, this.playerX));
+    if (Math.abs(kbd) > 0.05) {
+      this.facing = kbd > 0 ? 1 : -1;
+      this.aimDir = this.facing;
+      this.playerX += kbd * dt * 0.28;
+    }
+    this.playerX = Math.max(0.08, Math.min(0.68, this.playerX));
 
     const antX = 0.74;
     const dist = antX - this.playerX;
@@ -439,6 +455,7 @@ export class Ch6Scene extends ChapterScene {
       this.dash = 0.35;
       Cinematic.dash(this.playerX * this.engine.W, this.groundY() - 12, dir);
       this.playerX += dir * 0.13;
+      this.playerX = Math.max(0.08, Math.min(0.80, this.playerX));
       this.audio.sfx("footstep");
     }
   }
@@ -496,7 +513,11 @@ export class Ch6Scene extends ChapterScene {
 
   onActionKey(k) {
     if (k === "a" || k === "d") this.dodge(k === "a" ? -1 : 1);
-    else if (k === "shift") this.dodge(this.facing || 1);
+    else if (k === "shift") {
+      const stick = this.engine.axisX();
+      const dir = Math.abs(stick) > 0.12 ? (stick > 0 ? 1 : -1) : (this.facing ? -this.facing : -1);
+      this.dodge(dir);
+    }
     else if (k === "u") this.heroMove("uppercut");
     else if (k === "k") this.heroMove("spin");
     else if (k === "l") this.heroMove("spear");
@@ -646,7 +667,8 @@ export class Ch6Scene extends ChapterScene {
     // player
     if (this.phase !== "end-pan") {
       const heroPose = Cinematic.getHeroPose() || (this.guardT > 0 ? { shield: true } : null);
-      drawOdysseus(ctx, this.playerX * W, gy, 1.08, 1, this.t, true, true, Gear.kit(), heroPose);
+      const isMoving = Math.abs(this.engine.axisX()) > 0.08 || (this.dash && this.dash > 0);
+      drawOdysseus(ctx, this.playerX * W, gy, 1.08, this.facing || 1, this.t, true, isMoving, Gear.kit(), heroPose);
       drawNameTag(ctx, this.playerX * W, gy - 86 + (heroPose ? (heroPose.dy || 0) : 0), "ODYSSEUS");
       // bow arm while loosing, shield of the equipped armor at his side
       if ((this.phase === "volley" || this.phase === "wave" || this.phase === "duel") && this.bowCd > 0.18) {

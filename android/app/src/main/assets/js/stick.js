@@ -8,6 +8,7 @@
    ============================================================ */
 
 import { Gear } from "./gear.js";
+import { Dialogue } from "./ui.js";
 
 export const Stick = {
   built: false,
@@ -109,6 +110,12 @@ export const Stick = {
       if (!el) return;
       el.addEventListener("pointerdown", (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        // If dialogue is active, tapping near or on action buttons advances dialogue, NEVER triggers abilities!
+        if (Dialogue && Dialogue.active) {
+          Dialogue.advance();
+          return;
+        }
         el.classList.add("pressed");
         try { if (navigator.vibrate) navigator.vibrate(12); } catch {}
         const sc = this.getActionTarget();

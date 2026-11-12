@@ -76,6 +76,7 @@ export function returnHome() {
     currentScene = null;
   }
   currentIdx = -1;
+  window.__odysseyCurrentIdx = -1;
   engine.setScene(null);
   Dialogue.hide();
   Choices.hide();
@@ -98,9 +99,21 @@ export function returnHome() {
 }
 
 function renderTitle() {
-  const has = Save.data.completed.length > 0 || Save.data.unlocked > 1;
-  $("btn-continue").classList.toggle("hidden", !has);
-  $("btn-continue").textContent = "Continue — " + chapterName(Math.min(Save.data.unlocked, 6));
+  const has = (Save.data.completed && Save.data.completed.length > 0) || (Save.data.unlocked && Save.data.unlocked > 1) || (Save.data.lastChapter && Save.data.lastChapter > 0);
+  const targetChapter = Math.min(Save.data.lastChapter !== undefined ? Save.data.lastChapter : (Save.data.unlocked || 1), 6);
+  const contBtn = $("btn-continue");
+  const newBtn = $("btn-new-game");
+  if (contBtn) {
+    contBtn.classList.toggle("hidden", !has);
+    contBtn.textContent = "Continue — " + chapterName(targetChapter);
+    if (has) {
+      contBtn.classList.add("btn-hero");
+      if (newBtn) newBtn.classList.remove("btn-hero");
+    } else {
+      contBtn.classList.remove("btn-hero");
+      if (newBtn) newBtn.classList.add("btn-hero");
+    }
+  }
   Updater.render();
 }
 
@@ -183,6 +196,8 @@ export async function startChapter(idx) {
   }
   if (idx < 0 || idx >= CHAPTERS.length) return;
   currentIdx = idx;
+  window.__odysseyCurrentIdx = idx;
+  Save.recordChapter(idx);
   showScreen(null); // hide all screens
   const btnHome = $("btn-home");
   if (btnHome) btnHome.classList.remove("hidden");
@@ -240,6 +255,11 @@ function bindUI() {
 
   $("btn-new-game").addEventListener("click", () => {
     if (Updater.isLocked()) return;
+    const hasProgress = (Save.data.completed && Save.data.completed.length > 0) || (Save.data.unlocked && Save.data.unlocked > 1) || (Save.data.lastChapter && Save.data.lastChapter > 0);
+    if (hasProgress) {
+      const ok = confirm("Start a new voyage? Your journey progress will be restarted from Troy.");
+      if (!ok) return;
+    }
     Audio.resume();
     Save.reset();
     startChapter(0);
@@ -248,7 +268,8 @@ function bindUI() {
   $("btn-continue").addEventListener("click", () => {
     if (Updater.isLocked()) return;
     Audio.resume();
-    startChapter(Math.min(Save.data.unlocked, 6));
+    const target = Math.min(Save.data.lastChapter !== undefined ? Save.data.lastChapter : (Save.data.unlocked || 1), 6);
+    startChapter(target);
   });
 
   $("btn-chapters").addEventListener("click", () => {
@@ -295,10 +316,20 @@ function bindUI() {
   // dialogue advance: tap the box or the canvas
   $("dialogue").addEventListener("pointerdown", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     Dialogue.advance();
   });
-  $("game-canvas").addEventListener("pointerdown", () => {
-    if (Dialogue.active) Dialogue.advance();
+  $("dialogue").addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    Dialogue.advance();
+  });
+  $("game-canvas").addEventListener("pointerdown", (e) => {
+    if (Dialogue.active) {
+      e.preventDefault();
+      e.stopPropagation();
+      Dialogue.advance();
+    }
   });
 
   /* ---------------- keyboard (WASD + arrows) ---------------- */
@@ -397,7 +428,15 @@ try {
   engine.resize();
   engine.start();
   bindUI();
-  showScreen("title");
+
+  // If returning directly from an in-app update, resume right into the active chapter
+  const resumeIdx = localStorage.getItem("odyssey-resume-after-update");
+  if (resumeIdx !== null && !isNaN(Number(resumeIdx)) && Number(resumeIdx) >= 0) {
+    localStorage.removeItem("odyssey-resume-after-update");
+    startChapter(Number(resumeIdx));
+  } else {
+    showScreen("title");
+  }
 } catch (e) {
   console.error("boot failed", e);
 }

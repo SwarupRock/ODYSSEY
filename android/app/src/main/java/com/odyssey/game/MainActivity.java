@@ -82,6 +82,18 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
     public class AndroidUpdater {
         @JavascriptInterface
+        public String getSavedGame() {
+            return prefs.getString("game_save_json", "");
+        }
+
+        @JavascriptInterface
+        public void setSavedGame(String json) {
+            if (json != null) {
+                prefs.edit().putString("game_save_json", json).apply();
+            }
+        }
+
+        @JavascriptInterface
         public String getState() {
             try {
                 JSONObject o = new JSONObject();
