@@ -10,7 +10,7 @@
 import { PAL } from "./art.js";
 import { Fx } from "./fx.js";
 import { Voice } from "./voice.js";
-import { PixelVFX } from "./pixelvfx.js";
+import { PixelVFX, FX_MODULES, acquireSurface, releaseSurface, clearFrame, createFx, composite } from "./pixelvfx.js";
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -416,7 +416,7 @@ const SHOTS = [
   { id: "wheel", dur: 4.6, voice: "The Trojans dragged their doom through their own gates — singing." },
   { id: "night", dur: 3.4, voice: "That night, Troy slept without a watch." },
   { id: "sack",  dur: 7.2, voice: "And from the belly of the horse, the heroes woke." },
-  { id: "card",  dur: 4.2, line: "ODYSSEY" },
+  { id: "card",  dur: 5.5, line: "ODYSSEY" },
 ];
 
 export class FilmIntro {
@@ -429,6 +429,8 @@ export class FilmIntro {
     this.done = false;
     this._bar = 0;              // letterbox animation 0..1
     this._fired = new Set();    // one-shot audio cues per shot
+    this._burnFx = null;
+    this._burnSurf = null;
     audio.playChapterMusic(0);  // the doomed Troy dirge under everything
   }
 
@@ -455,7 +457,9 @@ export class FilmIntro {
       if (shot.id === "horse") this.audio.sfx("reveal");
       if (shot.id === "wheel") this.audio.sfx("thud");
       if (shot.id === "sack") { this.audio.sfx("reveal"); this.eng.shake(1.5); }
-      if (shot.id === "card" && shot.line === "ODYSSEY") this.audio.sfx("reveal");
+      if (shot.id === "card" && shot.line === "ODYSSEY") {
+        this.audio.sfx("flare");
+      }
     }
     // timed cinematic audio + pixelfx cues during the Trojan Horse breakout
     if (shot.id === "sack") {
@@ -493,11 +497,35 @@ export class FilmIntro {
         PixelVFX.spawn("fire/fire-ring", hx + 10 * s, gy, { palette: "fire", scale: 0.95 });
       }
     }
+    // PixelFX burn-away title reveal for ODYSSEY
+    if (shot.id === "card" && shot.line === "ODYSSEY") {
+      if (!this._burnFx) {
+        const mod = FX_MODULES["transitions/burn-away"];
+        if (mod) {
+          this._burnSurf = acquireSurface(320, 180);
+          this._burnFx = createFx(mod, { color: "#140c08", seed: 7 });
+        }
+      }
+      if (this._burnFx) {
+        this._burnFx.update(dt);
+        if (this.t >= 1.8 && !this._fired.has("burn_pop")) {
+          this._fired.add("burn_pop");
+          this.audio.sfx("flare");
+          this.audio.sfx("reveal");
+          this.eng.shake(1.5);
+        }
+      }
+    }
   }
 
   _finish() {
     if (this.done) return;
     this.done = true;
+    if (this._burnSurf) {
+      releaseSurface(this._burnSurf);
+      this._burnSurf = null;
+    }
+    this._burnFx = null;
     this.onDone && this.onDone();
   }
 
@@ -564,61 +592,90 @@ export class FilmIntro {
   }
 
   _drawCard(ctx, W, H, line, k) {
-    const a = Math.min(1, k * 3) * Math.min(1, (1 - k) * 3.2);
     const big = line === "ODYSSEY";
     if (big) {
-      const titleSize = Math.min(64, Math.max(32, W * 0.095));
-      const subSize = Math.max(13, Math.min(18, W * 0.032));
-      
-      const titleY = H * 0.44;
-      const subY = H * 0.55;
-      const topRuleY = titleY - titleSize * 0.72;
-      const btmRuleY = subY + subSize * 1.5;
-      
-      this._title(ctx, W / 2, titleY, "O D Y S S E Y", titleSize, a, PAL.bone, W * 0.85);
-      
-      // Subtitle
-      ctx.save();
-      ctx.globalAlpha = a * 0.85;
-      ctx.fillStyle = PAL.boneDim;
-      ctx.font = `italic 400 ${subSize}px Georgia, serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("the long way home", W / 2, subY);
-      ctx.restore();
-      
-      // Elegant framing lines with gold center diamond / meander accents
-      ctx.save();
-      ctx.globalAlpha = a * 0.75;
-      ctx.strokeStyle = PAL.bronze;
-      ctx.lineWidth = 1.8;
-      const w2 = Math.min(260, W * 0.36);
-      
-      // Top Rule
-      ctx.beginPath();
-      ctx.moveTo(W / 2 - w2, topRuleY);
-      ctx.lineTo(W / 2 + w2, topRuleY);
-      ctx.stroke();
-      
-      // Bottom Rule
-      ctx.beginPath();
-      ctx.moveTo(W / 2 - w2, btmRuleY);
-      ctx.lineTo(W / 2 + w2, btmRuleY);
-      ctx.stroke();
+      const shotDur = (SHOTS[this.i] && SHOTS[this.i].dur) || 5.5;
+      const remain = shotDur - this.t;
+      // Title emerges at t >= 1.4s (during smoulder/POP) and holds proud, fading gently at the end
+      const a = Math.min(1, Math.max(0, this.t - 1.4) * 2.8) * Math.min(1, remain * 2);
 
-      // Center gold diamond ornaments on top and bottom rules
-      ctx.fillStyle = PAL.bronzeBright;
-      for (const yy of [topRuleY, btmRuleY]) {
+      if (a > 0.01) {
+        const titleSize = Math.min(64, Math.max(32, W * 0.095));
+        const subSize = Math.max(13, Math.min(18, W * 0.032));
+        
+        const titleY = H * 0.44;
+        const subY = H * 0.55;
+        const topRuleY = titleY - titleSize * 0.72;
+        const btmRuleY = subY + subSize * 1.5;
+        
+        // Radiant golden aura behind title
+        const glow = ctx.createRadialGradient(W / 2, H * 0.48, 10, W / 2, H * 0.48, W * 0.42);
+        glow.addColorStop(0, `rgba(230, 192, 105, ${0.28 * a})`);
+        glow.addColorStop(0.5, `rgba(168, 108, 36, ${0.12 * a})`);
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, W, H);
+
+        this._title(ctx, W / 2, titleY, "O D Y S S E Y", titleSize, a, PAL.bone, W * 0.85);
+        
+        // Subtitle
+        ctx.save();
+        ctx.globalAlpha = a * 0.85;
+        ctx.fillStyle = PAL.boneDim;
+        ctx.font = `italic 400 ${subSize}px Georgia, serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("the long way home", W / 2, subY);
+        ctx.restore();
+        
+        // Elegant framing lines with gold center diamond / meander accents
+        ctx.save();
+        ctx.globalAlpha = a * 0.75;
+        ctx.strokeStyle = PAL.bronze;
+        ctx.lineWidth = 1.8;
+        const w2 = Math.min(260, W * 0.36);
+        
+        // Top Rule
         ctx.beginPath();
-        ctx.moveTo(W / 2, yy - 3.5);
-        ctx.lineTo(W / 2 + 3.5, yy);
-        ctx.lineTo(W / 2, yy + 3.5);
-        ctx.lineTo(W / 2 - 3.5, yy);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(W / 2 - w2, topRuleY);
+        ctx.lineTo(W / 2 + w2, topRuleY);
+        ctx.stroke();
+        
+        // Bottom Rule
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - w2, btmRuleY);
+        ctx.lineTo(W / 2 + w2, btmRuleY);
+        ctx.stroke();
+
+        // Center gold diamond ornaments on top and bottom rules
+        ctx.fillStyle = PAL.bronzeBright;
+        for (const yy of [topRuleY, btmRuleY]) {
+          ctx.beginPath();
+          ctx.moveTo(W / 2, yy - 3.5);
+          ctx.lineTo(W / 2 + 3.5, yy);
+          ctx.lineTo(W / 2, yy + 3.5);
+          ctx.lineTo(W / 2 - 3.5, yy);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
       }
-      ctx.restore();
+
+      // Draw PixelFX burn-away transition overlay:
+      // screen burns in from edges behind licking flames, char smoulders,
+      // then at 1.8s POP bursts open in the center revealing ODYSSEY
+      if (this._burnFx && this._burnSurf && !this._burnFx.done()) {
+        const frame = clearFrame(this._burnSurf.frame);
+        this._burnFx.draw(frame);
+        composite(frame, this._burnSurf.imgData.data, null, 1);
+        this._burnSurf.ctx.putImageData(this._burnSurf.imgData, 0, 0);
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this._burnSurf.canvas, 0, 0, W, H);
+        ctx.restore();
+      }
     } else {
+      const a = Math.min(1, k * 3) * Math.min(1, (1 - k) * 3.2);
       this._title(ctx, W / 2, H * 0.5, line, Math.min(24, Math.max(14, W * 0.045)), a, PAL.boneDim, W * 0.88);
     }
   }

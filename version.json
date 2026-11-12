@@ -1,9 +1,9 @@
 {
-  "version": "1.2.5",
-  "build": 7,
+  "version": "1.2.6",
+  "build": 8,
   "mandatory": true,
-  "hash": "2ab5e350d345",
-  "notes": "Replace Begin Voyage with View History Video after voyage start, continue where left off after cinematic, fix button click",
+  "hash": "63094726b476",
+  "notes": "Trojan cinematic: PixelFX Burn Away transition on ODYSSEY title reveal with fire pop, screen shake, and golden aura",
   "baseUrl": "https://raw.githubusercontent.com/SwarupRock/ODYSSEY/main/",
   "files": [
     "audio/voices/091e5ea2.mp3",
@@ -212,6 +212,7 @@
     "js/pixelfx/fx/status/rage.js",
     "js/pixelfx/fx/status/stunned.js",
     "js/pixelfx/fx/transitions/_lib.js",
+    "js/pixelfx/fx/transitions/burn-away.js",
     "js/pixelfx/fx/transitions/slash-wipe.js",
     "js/pixelfx/fx/ui/_lib.js",
     "js/pixelfx/fx/ui/combo-counter.js",
