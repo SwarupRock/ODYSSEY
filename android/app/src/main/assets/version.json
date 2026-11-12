@@ -1,9 +1,9 @@
 {
-  "version": "1.2.2",
-  "build": 4,
+  "version": "1.2.3",
+  "build": 5,
   "mandatory": true,
-  "hash": "aa0eef7e2c67",
-  "notes": "Chapter 3 overhaul: Greek marble palace & cauldron, Hermes Moly transmutation, sword drawn in hands, restored Greek crewmen",
+  "hash": "5c8f1a3883f4",
+  "notes": "Chapter 4 Underworld: Human person shades for Greek dead, fixed joystick movement for Odysseus",
   "baseUrl": "https://raw.githubusercontent.com/SwarupRock/ODYSSEY/main/",
   "files": [
     "audio/voices/091e5ea2.mp3",

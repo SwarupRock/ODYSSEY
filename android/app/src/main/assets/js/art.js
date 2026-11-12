@@ -954,26 +954,202 @@ export function drawTiresias(ctx, x, y, s, t) {
   ctx.restore();
 }
 
-/** GHOST (underworld shades) */
+/** GHOST / SHADE OF A PERSON — Greek souls drifting in the Underworld */
 export function drawGhost(ctx, x, y, s, t, i = 0) {
   ctx.save();
-  ctx.globalAlpha = 0.28 + Math.sin(t * 1.8 + i * 2) * 0.1;
+  const alpha = 0.32 + Math.sin(t * 1.8 + i * 2) * 0.09;
+  ctx.globalAlpha = alpha;
   const drift = Math.sin(t * 0.7 + i * 1.7) * 12;
-  const float = Math.sin(t * 1.1 + i) * 5;
-  ctx.fillStyle = PAL.aegeanDeep;
+  const float = Math.sin(t * 1.1 + i) * 6;
+  const px = x + drift, py = y + float;
+
+  // Underworld spectral palette (pale teal, ethereal bone, deep shadow)
+  const spect = (i % 3 === 0) ? "#6e94a8" : (i % 3 === 1) ? "#8caab8" : "#5d7c8e";
+  const glow = "#c8e6f4";
+
+  // Spectral flowing chiton / tunic body
+  ctx.fillStyle = spect;
   ctx.beginPath();
-  const yy = y + float;
-  ctx.moveTo(x + drift, yy - 34 * s);
-  ctx.quadraticCurveTo(x + drift - 10 * s, yy - 16 * s, x + drift - 8 * s, yy);
-  // wavy hem
-  for (let k = 0; k < 4; k++) {
-    ctx.quadraticCurveTo(
-      x + drift - 8 * s + (k * 2 + 1) * 4 * s, yy + 4 * s * (k % 2 ? -1 : 1),
-      x + drift - 8 * s + (k + 1) * 4 * s, yy
-    );
+  ctx.moveTo(px, py - 52 * s);
+  ctx.quadraticCurveTo(px - 14 * s, py - 36 * s, px - 11 * s, py - 8 * s);
+  // trailing vaporous hem
+  for (let k = 0; k < 3; k++) {
+    const wave = Math.sin(t * 3.5 + i + k) * 3 * s;
+    ctx.quadraticCurveTo(px - 11 * s + (k * 2 + 1) * 3.6 * s, py + wave, px - 11 * s + (k + 1) * 7.2 * s, py - 8 * s);
   }
-  ctx.quadraticCurveTo(x + drift + 10 * s, yy - 16 * s, x + drift, yy - 34 * s);
+  ctx.quadraticCurveTo(px + 14 * s, py - 36 * s, px, py - 52 * s);
+  ctx.closePath();
+  ctx.fill();
+
+  // Torso / shoulders
+  ctx.fillStyle = spect;
+  ctx.beginPath();
+  ctx.moveTo(px - 10 * s, py - 50 * s);
+  ctx.lineTo(px + 10 * s, py - 50 * s);
+  ctx.lineTo(px + 7 * s, py - 30 * s);
+  ctx.lineTo(px - 7 * s, py - 30 * s);
+  ctx.closePath();
+  ctx.fill();
+
+  // Human Head
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(px, py - 58 * s, 6.8 * s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hollow spectral eyes
+  ctx.fillStyle = "#0c151c";
+  ctx.beginPath();
+  ctx.arc(px - 2.2 * s, py - 58 * s, 1.2 * s, 0, Math.PI * 2);
+  ctx.arc(px + 2.2 * s, py - 58 * s, 1.2 * s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Outstretched or drifting arms
+  ctx.strokeStyle = spect;
+  ctx.lineWidth = 2.4 * s;
+  ctx.lineCap = "round";
+  const armSway = Math.sin(t * 2 + i) * 3 * s;
+  if (i % 2 === 0) {
+    // Reaching forward toward the living
+    ctx.beginPath(); ctx.moveTo(px + 6 * s, py - 46 * s); ctx.lineTo(px + 16 * s, py - 40 * s + armSway); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px - 6 * s, py - 46 * s); ctx.lineTo(px - 14 * s, py - 36 * s); ctx.stroke();
+  } else {
+    // Mourning posture
+    ctx.beginPath(); ctx.moveTo(px + 6 * s, py - 46 * s); ctx.lineTo(px + 10 * s, py - 36 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px - 6 * s, py - 46 * s); ctx.lineTo(px - 10 * s, py - 36 * s); ctx.stroke();
+  }
+
+  // Ethereal rim outline
+  ctx.strokeStyle = "rgba(215, 240, 255, 0.35)";
+  ctx.lineWidth = 1.1 * s;
+  ctx.beginPath();
+  ctx.arc(px, py - 58 * s, 7.5 * s, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/** PERSON SHADE — Detailed humanoid ghost of specific Greek figures (Elpenor, Anticleia, Agamemnon, Achilles) */
+export function drawPersonShade(ctx, x, y, s, t, shadeId = 0) {
+  ctx.save();
+  const float = Math.sin(t * 1.5) * 4;
+  const pulse = 0.55 + Math.sin(t * 2.2) * 0.12;
+  ctx.globalAlpha = pulse;
+  const px = x, py = y + float;
+
+  // Palette per shade
+  let baseCol = "#7da4ba", skinCol = "#d2e8f5", rimCol = "#e6f4fc";
+  if (shadeId === 1) { // Anticleia (mother, tender violet-bone glow)
+    baseCol = "#8b7e9c"; skinCol = "#eedff5"; rimCol = "#f7ecfc";
+  } else if (shadeId === 2) { // Agamemnon (king, dark crimson & bronze shadow)
+    baseCol = "#9c6058"; skinCol = "#edd4cf"; rimCol = "#fce8e6";
+  } else if (shadeId === 3) { // Achilles (great warrior, starlight gold-teal)
+    baseCol = "#649197"; skinCol = "#e2f2ea"; rimCol = "#fff3c2";
+  }
+
+  // Ground soul aura
+  ctx.save();
+  ctx.globalAlpha = pulse * 0.4;
+  ctx.fillStyle = baseCol;
+  ctx.beginPath();
+  ctx.ellipse(px, y + 2 * s, 22 * s, 6 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Robe / Body
+  ctx.fillStyle = baseCol;
+  ctx.beginPath();
+  ctx.moveTo(px, py - 68 * s);
+  ctx.quadraticCurveTo(px - 18 * s, py - 44 * s, px - 15 * s, py - 6 * s);
+  // wispy ethereal hem
+  for (let k = 0; k < 4; k++) {
+    const wave = Math.sin(t * 4 + k) * 3 * s;
+    ctx.quadraticCurveTo(px - 15 * s + (k * 2 + 1) * 3.8 * s, py + wave, px - 15 * s + (k + 1) * 7.5 * s, py - 6 * s);
+  }
+  ctx.quadraticCurveTo(px + 18 * s, py - 44 * s, px, py - 68 * s);
+  ctx.closePath();
+  ctx.fill();
+
+  // Torso & clothing accents
+  ctx.fillStyle = baseCol;
+  ctx.beginPath();
+  ctx.moveTo(px - 12 * s, py - 66 * s); ctx.lineTo(px + 12 * s, py - 66 * s);
+  ctx.lineTo(px + 9 * s, py - 42 * s); ctx.lineTo(px - 9 * s, py - 42 * s);
   ctx.closePath(); ctx.fill();
+
+  // Head
+  ctx.fillStyle = skinCol;
+  ctx.beginPath();
+  ctx.arc(px, py - 78 * s, 9 * s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hollow haunted eyes
+  ctx.fillStyle = "#0a131a";
+  ctx.beginPath();
+  ctx.arc(px - 2.8 * s, py - 78 * s, 1.4 * s, 0, Math.PI * 2);
+  ctx.arc(px + 2.8 * s, py - 78 * s, 1.4 * s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Unique personal traits
+  ctx.strokeStyle = rimCol;
+  ctx.lineWidth = 2 * s;
+  ctx.lineCap = "round";
+
+  if (shadeId === 0) {
+    // ELPENOR — young sailor, pleading outstretched arms
+    const reach = Math.sin(t * 3) * 3 * s;
+    ctx.beginPath(); ctx.moveTo(px - 8 * s, py - 62 * s); ctx.lineTo(px - 22 * s, py - 52 * s + reach); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + 8 * s, py - 62 * s); ctx.lineTo(px - 8 * s, py - 50 * s); ctx.stroke();
+    // sailor headband
+    ctx.strokeStyle = rimCol; ctx.lineWidth = 1.6 * s;
+    ctx.beginPath(); ctx.arc(px, py - 81 * s, 9.2 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.stroke();
+  } else if (shadeId === 1) {
+    // ANTICLEIA — mother, mourning veil & maternal hands
+    ctx.fillStyle = baseCol;
+    ctx.beginPath();
+    ctx.moveTo(px, py - 90 * s);
+    ctx.quadraticCurveTo(px - 16 * s, py - 70 * s, px - 13 * s, py - 48 * s);
+    ctx.lineTo(px + 13 * s, py - 48 * s);
+    ctx.quadraticCurveTo(px + 16 * s, py - 70 * s, px, py - 90 * s);
+    ctx.closePath(); ctx.fill();
+    // hands held forward lovingly
+    ctx.beginPath(); ctx.moveTo(px - 8 * s, py - 58 * s); ctx.lineTo(px - 18 * s, py - 54 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + 8 * s, py - 58 * s); ctx.lineTo(px - 4 * s, py - 52 * s); ctx.stroke();
+  } else if (shadeId === 2) {
+    // AGAMEMNON — high king, royal crested crown & mantle
+    ctx.fillStyle = "#ffcc44"; // ghostly gold circlet
+    ctx.beginPath();
+    ctx.moveTo(px - 7 * s, py - 88 * s); ctx.lineTo(px + 7 * s, py - 88 * s);
+    ctx.lineTo(px + 5 * s, py - 84 * s); ctx.lineTo(px - 5 * s, py - 84 * s);
+    ctx.closePath(); ctx.fill();
+    // royal mantle
+    ctx.strokeStyle = baseCol; ctx.lineWidth = 4.5 * s;
+    ctx.beginPath(); ctx.moveTo(px - 15 * s, py - 66 * s); ctx.lineTo(px - 19 * s, py - 32 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + 15 * s, py - 66 * s); ctx.lineTo(px + 19 * s, py - 32 * s); ctx.stroke();
+  } else {
+    // ACHILLES — legendary warrior, crested war helm & spear
+    ctx.fillStyle = "#d2b460"; // ghostly bronze helm
+    ctx.beginPath(); ctx.arc(px, py - 80 * s, 9.8 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
+    // tall scarlet spectral crest
+    ctx.strokeStyle = "#e86450"; ctx.lineWidth = 3.6 * s;
+    ctx.beginPath(); ctx.moveTo(px - 8 * s, py - 86 * s);
+    ctx.quadraticCurveTo(px, py - 104 * s, px + 8 * s, py - 86 * s); ctx.stroke();
+    // ghostly spear
+    ctx.strokeStyle = "#b8dce4"; ctx.lineWidth = 2.4 * s;
+    ctx.beginPath(); ctx.moveTo(px + 16 * s, py); ctx.lineTo(px + 16 * s, py - 98 * s); ctx.stroke();
+    ctx.fillStyle = "#fffae0";
+    ctx.beginPath();
+    ctx.moveTo(px + 16 * s, py - 106 * s); ctx.lineTo(px + 13 * s, py - 96 * s); ctx.lineTo(px + 19 * s, py - 96 * s);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // Luminous soul glow outline
+  ctx.strokeStyle = rimCol;
+  ctx.lineWidth = 1.4 * s;
+  ctx.beginPath();
+  ctx.arc(px, py - 78 * s, 9.8 * s, 0, Math.PI * 2);
+  ctx.stroke();
+
   ctx.restore();
 }
 
