@@ -504,3 +504,40 @@ R. STAGE 4D.2 — CHAPTER III NARRATIVE CONTINUITY
 - [VERIFIED] Root and Android Chapter III scene files are byte-identical.
 - [POTENTIAL] Full browser chapter traversal and physical Android WebView
   testing remain outstanding.
+--------------------------------------------------------------------------------
+S. TEAM INTEGRATION STAGE 4E — CHAPTER III RECONCILIATION AND MAIN MERGE
+--------------------------------------------------------------------------------
+- [VERIFIED] Local integration merge commit
+  4ba1e8cb1595544bfd6e9f2574b2dd808f618d8b has parents
+  a5b8de153decca73a6b8a9de6a4f5bb698fd6cc4 (integration) and
+  61ae19f2b64c21ae530334df90f02df2c74bcdac (origin/main). The branch was not
+  pushed and main was not modified.
+- [VERIFIED] The only merge conflicts were the root and Android Chapter III
+  scenes. They were resolved manually by combining main's palace, Moly,
+  Cauldron, beast health, contextual sword encounter, and compatible progression
+  with integration's ingredient gathering, recipe bench, restoration behavior,
+  Clarifying Draught, and scripted finale.
+- [VERIFIED] Eurylochus remains the reporter and is not transformed. Exactly
+  Polites, Elpenor, and Perimedes occupy the three rescue slots; completion is
+  still gated by three successful rescues.
+- [VERIFIED] Rescue prioritizes a carried Clarifying Draught and otherwise uses
+  one Moly Elixir charge. Failed rescues do not consume a potion or increment
+  progress. Repeated successful rescue actions cannot increment a cured slot.
+- [VERIFIED] Chapter III leaves the generic combat cluster disabled and hides
+  dodge during initialization and cleanup. C/K dodge dispatch and other
+  unsupported generic actions have no Chapter III combat effect. Space/Enter
+  and ACT share contextual routing; only the contextual basic slash can damage
+  beasts. W/gy are not referenced by that action handler.
+- [VERIFIED] Nearby pig rescue precedes the hall bench; the Cauldron has a
+  separate nearby action button and yields to a nearby uncured pig or an open
+  bench. Root and Android Chapter III scene files are byte-identical.
+- [VERIFIED] Main's Chapter IV, paired art, and tracked APK changes were merged.
+  Root/Android Chapter IV and art pairs remain synchronized. `sw.js` and the
+  root/Android `version.json` OTA manifests are unchanged; the main manifest
+  version bump was excluded under the no-manifest-change restriction.
+- [VERIFIED] Both Chapter III files pass `node --check`; focused source and
+  isolated rescue/brew behavior assertions pass; `git diff --check` passed
+  before commit. No repository test suite was found.
+- [POTENTIAL] Browser gameplay and physical Android WebView runtime validation
+  remain outstanding. The merged APK was not rebuilt or installed.
+--------------------------------------------------------------------------------

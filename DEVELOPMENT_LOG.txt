@@ -1949,3 +1949,100 @@ Next recommended action:
 Review Stage 4D.2 and separately approve any later narrative or gameplay work.
 Do not begin stamina integration or unrelated chapter changes.
 --------------------------------------------------
+
+ENTRY 023 — CHAPTER III RECONCILIATION AND LOCAL MAIN INTEGRATION
+
+Date: 2026-11-13
+Status: COMPLETED — BROWSER AND ANDROID RUNTIME VALIDATION PENDING
+Development phase: Team Integration — Stage 4E
+
+Objective:
+Merge the reviewed latest origin/main into the integration branch and reconcile
+both Chapter III scenes to preserve compatible main content and approved
+integration gameplay without enabling generic combat or shared dodge.
+
+Work completed:
+- Fetched and verified origin/main at
+  61ae19f2b64c21ae530334df90f02df2c74bcdac and integration at
+  a5b8de153decca73a6b8a9de6a4f5bb698fd6cc4.
+- Created normal merge commit 4ba1e8cb1595544bfd6e9f2574b2dd808f618d8b
+  on integration/team-merge-2026-11-12. The merge has both expected parents.
+- Manually reconciled root and Android Chapter III scenes, retaining the main
+  palace, Moly blossoms and essence, Cauldron, beast health, contextual sword
+  damage, compatible visuals, dialogue, rewards, and progression alongside
+  integration ingredient gathering, recipes, bench, invalid-recipe restoration,
+  potion inventory, and the scripted Circe finale.
+- Kept Eurylochus as the untransformed reporter. The three transformed/rescued
+  crew remain Polites, Elpenor, and Perimedes; completion remains at three.
+- Clarifying Draught takes rescue priority; Moly Elixir is the fallback. Failed
+  rescue consumes nothing, and a successful rescue consumes one potion and
+  increments the counter once.
+- Restricted Chapter III actions to contextual Space/Enter and ACT. Generic
+  combat stays disabled; dodge is hidden at initialization and cleanup; only
+  the contextual basic slash can damage beasts. Fixed the W/gy handler issue.
+- Kept the production version manifests at their integration-branch contents
+  under the no-OTA-manifest-change restriction. Main's updated Chapter IV,
+  art, and packaged APK merge contributions were retained; the APK was not
+  rebuilt or installed.
+
+Files modified:
+- ODYSSEY.apk (merged tracked binary from origin/main; not rebuilt)
+- js/art.js
+- android/app/src/main/assets/js/art.js
+- scenes/ch3_circe.js
+- android/app/src/main/assets/scenes/ch3_circe.js
+- scenes/ch4_underworld.js
+- android/app/src/main/assets/scenes/ch4_underworld.js
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Resolved the only merge conflicts semantically in the Chapter III root and
+  Android scenes; neither branch's Chapter III scene was accepted wholesale.
+- Contextual action priority is nearby uncured pig, palace brew bench, then a
+  nearby beast. The Cauldron has its own nearby button; it yields to a nearby
+  uncured pig and is unavailable while the bench is open.
+- Space/Enter and mobile ACT share the same route. All other action keys,
+  including C/K dodge dispatch, are ignored by Chapter III.
+- Kept root and Android Chapter III sources byte-identical. No sw.js or
+  version.json changes were included. No stamina integration was performed.
+
+Testing performed:
+- `node --check scenes/ch3_circe.js` — passed.
+- `node --check android/app/src/main/assets/scenes/ch3_circe.js` — passed.
+- `cmp -s scenes/ch3_circe.js android/app/src/main/assets/scenes/ch3_circe.js`
+  — passed.
+- `git diff --cached --check` — passed before the merge commit.
+- Temporary focused Node assertions checked the roster, reporting dialogue,
+  three rescue slots, completion gate, potion priority/fallback, single
+  consumption and increment, failed-rescue state, recipe definitions,
+  successful ingredient consumption, invalid-recipe restoration, beast HP,
+  input isolation, hidden dodge, and absence of W/gy from the action handler.
+  — passed.
+- No repository package/test scripts or test files were discovered.
+- Browser gameplay and physical Android runtime tests were not performed.
+
+Test results:
+All source syntax, Chapter III focused checks, and root/Android parity checks
+passed. Browser and physical Android runtime behavior remains unverified.
+
+Outstanding issues:
+- Perform browser Chapter III traversal and physical Android WebView validation
+  after review, without invoking the updater or rebuilding/installing the APK.
+- Recheck the merged APK/version relationship before any later release task;
+  version.json intentionally remains unchanged by this merge per restriction.
+
+Platform validation:
+Browser: source-level validation only; runtime not tested.
+Android: packaged Chapter III source parity verified; native runtime not tested.
+
+Next recommended action:
+Review the local merge and Chapter III reconciliation. Do not push or begin OTA
+publication until review approval.
+--------------------------------------------------
