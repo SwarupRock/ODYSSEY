@@ -9,6 +9,7 @@ import { Gear } from "./gear.js";
 import { drawArrow, PAL } from "./art.js";
 import { Fx } from "./fx.js";
 import { Cinematic } from "./combat.js";
+import { PixelVFX } from "./pixelvfx.js";
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -107,10 +108,12 @@ export class ChapterScene {
    * already played the clang) or "hit" (caller applies damage).
    */
   hitPlayer(px, py) {
+    const kit = Gear.kit();
     if (Gear.absorb() === "blocked") {
       this.audio.sfx("block");
       this.burst(px, py, "#e6c069", 46, 3);
-      this.note("Turned by the " + Gear.armorName() + "!");
+      Cinematic.block(px, py, this.facing || this.aimDir || 1, kit.armor.id);
+      this.note("Turned by the " + kit.armor.name + "!");
       return "blocked";
     }
     return "hit";
@@ -150,12 +153,13 @@ export class ChapterScene {
     for (const a of this.arrows) {
       const px = a.x;
       a.x += a.vx * dt;
-      Cinematic.arrowTrail(px, a.py, a.x, a.y); // motion trail (fire arrows burn brighter below)
+      Cinematic.arrowTrail(px, a.py, a.x, a.y, a.arrowTier); // motion trail
       for (const c of colliders) {
         if (c.ref && !c.ref.dead && Math.abs(a.x - c.x) < (c.r || 30)) {
           a.dead = true;
           this.audio.sfx("arrowhit");
-          Cinematic.impact(a.x, a.y, a.arrowTier >= 1 ? PAL.fireBright : PAL.bronzeBright, a.dmg >= 4);
+          const kind = a.arrowTier >= 2 ? "apollo" : a.arrowTier === 1 ? "fire" : null;
+          Cinematic.impact(a.x, a.y, a.arrowTier >= 1 ? PAL.fireBright : PAL.bronzeBright, a.dmg >= 4, kind);
           const died = onArrowHit ? onArrowHit(c.ref, a) : true;
           if (died) c.ref.dead = true;
           break;
@@ -169,6 +173,13 @@ export class ChapterScene {
   drawArrows(ctx) {
     for (const a of this.arrows) {
       drawArrow(ctx, a.x, a.y, a.vx > 0 ? 1 : -1, 0, a.arrowTier);
+      if (a.arrowTier >= 1) {
+        PixelVFX.drawLoop(ctx, "projectiles/arrow", a.x, a.y, this.t, {
+          flip: a.vx < 0,
+          palette: a.arrowTier >= 2 ? "apollo" : "fire",
+          scale: 0.72,
+        });
+      }
     }
   }
 

@@ -12,6 +12,7 @@ import { PAL, drawSky, drawGround, drawWaves, drawShip, drawSiren, drawOdysseus,
 import { ChapterScene, sleep } from "../js/scenefw.js";
 import { Fx } from "../js/fx.js";
 import { HUD, Mech } from "../js/ui.js";
+import { PixelVFX } from "../js/pixelvfx.js";
 
 export class Ch5Scene extends ChapterScene {
   initState() {
@@ -117,22 +118,27 @@ export class Ch5Scene extends ChapterScene {
 
   judge(kind, n) {
     const r = this.r;
+    const W = this.engine.w, H = this.engine.h, seaY = H * 0.62;
     if (kind === "perfect") {
       r.resistance = Math.min(100, r.resistance + 9);
       r.perfect++;
       this.audio.sfx("perfect");
       this.showJudge("PERFECT", "perfect");
+      PixelVFX.spawn("pickups/collect-burst", W * 0.32, seaY + H * 0.16 - 24, { palette: "apollo", scale: 1.6 });
     } else if (kind === "good") {
       r.resistance = Math.min(100, r.resistance + 5);
       r.good++;
       this.audio.sfx("success");
       this.showJudge("GOOD", "good");
+      PixelVFX.spawn("pickups/collect-burst", W * 0.32, seaY + H * 0.16 - 24, { palette: "bronze", scale: 1.25, alpha: 0.85 });
     } else {
       r.resistance -= 16;
       r.miss++;
       this.audio.sfx("miss");
       this.engine.shake(0.5);
       this.showJudge("THE SONG PULLS", "miss");
+      PixelVFX.spawn("lightning/zap-hit", W * 0.32, seaY + H * 0.16 - 20, { palette: "siren", scale: 1.4 });
+      PixelVFX.spawn("critters/wisp", W * 0.78, seaY - H * 0.2, { palette: "siren", scale: 1.5 });
     }
   }
 
@@ -263,6 +269,14 @@ export class Ch5Scene extends ChapterScene {
           s.hits++;
           this.audio.sfx("crash");
           this.engine.shake(1.5);
+          const sx = this.engine.w * 0.3, sy = s.laneY * this.engine.h;
+          if (o.top) {
+            PixelVFX.spawn("melee/claw-swipe", sx + 12, sy - 14, { palette: "blood", scale: 1.85, angle: 0.35, engine: this.engine });
+            PixelVFX.spawn("impacts/hit-spark", sx, sy - 8, { palette: "blood", scale: 1.5 });
+          } else {
+            PixelVFX.spawn("water/splash", sx, sy + 14, { palette: "aegean", scale: 2.0 });
+            PixelVFX.spawn("water/wave-crash", sx + 18, sy + 20, { palette: "aegean", scale: 1.6 });
+          }
           this.note(o.top ? "Scylla's reach! Men scream from the deck!" : "Charybdis sucks at the keel!");
         }
       }
@@ -369,6 +383,8 @@ export class Ch5Scene extends ChapterScene {
       ctx.closePath(); ctx.fill();
 
       // three sirens
+      PixelVFX.drawLoop(ctx, "critters/wisp", W * 0.855, seaY - H * 0.3 - 34, this.t, { palette: "siren", scale: 1.45, alpha: 0.78 });
+      PixelVFX.drawLoop(ctx, "critters/wisp", W * 0.79, seaY - H * 0.2 - 28, this.t + 0.55, { palette: "siren", scale: 1.25, alpha: 0.7 });
       drawSiren(ctx, W * 0.855, seaY - H * 0.3, 1.05, this.t, 0);
       drawSiren(ctx, W * 0.93, seaY - H * 0.16, 0.9, this.t, 2);
       drawSiren(ctx, W * 0.79, seaY - H * 0.2, 0.85, this.t, 4);
@@ -408,6 +424,7 @@ export class Ch5Scene extends ChapterScene {
         ctx.arc(wx, wy, 30 + k * 22 + Math.sin(this.t * 3 + k) * 5, s.scroll * (1 + k * 0.4), s.scroll * (1 + k * 0.4) + Math.PI * 1.5);
         ctx.stroke();
       }
+      PixelVFX.drawLoop(ctx, "water/whirlpool", wx, wy - 12, this.t * 1.2, { palette: "aegean", scale: 2.3, alpha: 0.85 });
 
       // obstacles
       for (const o of s.obstacles) {
@@ -438,6 +455,7 @@ export class Ch5Scene extends ChapterScene {
           ctx.beginPath();
           ctx.ellipse(ox, H * 1.02, o.w * W * 0.4, 30, 0, 0, Math.PI * 2);
           ctx.stroke();
+          PixelVFX.drawLoop(ctx, "water/whirlpool", ox, H * 0.96, this.t * 1.3 + ox * 0.01, { palette: "aegean", scale: 1.75, alpha: 0.78 });
         }
       }
 

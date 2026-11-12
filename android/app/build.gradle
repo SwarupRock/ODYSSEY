@@ -10,8 +10,15 @@ android {
         applicationId "com.odyssey.game"
         minSdk 24            // Android 7.0 — everything Chrome WebView needs
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.2.0"
+        buildConfigField "int", "BUNDLED_BUILD", "2"
+        buildConfigField "String", "BUNDLED_VERSION", "\"1.2.0\""
+        buildConfigField "String", "DEFAULT_MANIFEST_URL", "\"https://raw.githubusercontent.com/SwarupRock/ODYSSEY/main/version.json\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     // The whole game ships as compressed assets inside the APK; the

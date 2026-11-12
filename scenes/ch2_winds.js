@@ -8,6 +8,7 @@
 import { PAL, drawSky, drawGround, drawWaves, drawMeander, drawShip, drawAeolus, drawOdysseus, drawSuitor, drawNameTag, drawGulls, drawReflections } from "../js/art.js";
 import { ChapterScene, sleep } from "../js/scenefw.js";
 import { HUD, Mech, Choices } from "../js/ui.js";
+import { PixelVFX } from "../js/pixelvfx.js";
 
 export class Ch2Scene extends ChapterScene {
   initState() {
@@ -52,6 +53,7 @@ export class Ch2Scene extends ChapterScene {
 
   scheduleEvent() {
     const roll = Math.random();
+    const W = this.engine.W, H = this.engine.H, seaY = H * 0.62;
     if (roll < 0.45) {
       // crew drifts toward the bag
       this.events.push({
@@ -60,10 +62,14 @@ export class Ch2Scene extends ChapterScene {
         label: "A sailor creeps toward the bag — TAP the warning to stop him",
         resolved: false,
       });
+      PixelVFX.spawn("ui/exclamation", W * 0.5 + 60, seaY - 12, { palette: "fire", scale: 0.9 });
     } else if (roll < 0.75) {
       // wind squall
-      this.events.push({ type: "squall", t: 5, label: "A squall! Hold against it!", dir: Math.random() < 0.5 ? -1 : 1, power: 0.1 + Math.random() * 0.08 });
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      this.events.push({ type: "squall", t: 5, label: "A squall! Hold against it!", dir, power: 0.1 + Math.random() * 0.08 });
       this.audio.sfx("gust");
+      PixelVFX.spawn("lightning/lightning-strike", W * (0.25 + Math.random() * 0.5), seaY + 12, { palette: "aegean", scale: 1.0 });
+      PixelVFX.spawn("water/wave-crash", W * 0.5 + dir * 70, seaY + 26, { flip: dir > 0, palette: "aegean", scale: 0.9 });
     } else {
       // becalmed
       this.events.push({ type: "calm", t: 5, label: "The wind dies. Sail hangs slack…" });
@@ -179,6 +185,10 @@ export class Ch2Scene extends ChapterScene {
     this.state = "down";
     this.audio.sfx("crash");
     this.engine.shake(2.2);
+    const W = this.engine.W, seaY = this.engine.H * 0.62;
+    PixelVFX.spawn("nature/tornado", W * 0.5, seaY + 26, { palette: "aegean", scale: 1.3 });
+    PixelVFX.spawn("lightning/thunderclap", W * 0.5, seaY + 18, { palette: "aegean", scale: 1.15 });
+    PixelVFX.spawn("water/wave-crash", W * 0.42, seaY + 28, { palette: "aegean", scale: 1.1 });
     await this.say(
       storm
         ? { who: "NARRATOR", text: "The wind screamed out of the sack like a freed falcon. Masts snapped. The sea took the ships like a man taking back a loan." }
@@ -213,6 +223,9 @@ export class Ch2Scene extends ChapterScene {
 
     drawSky(ctx, "#6d5b7a", "#c98a5a", [W * 0.78, H * 0.24, Math.min(W, H) * 0.34]); // dusk
     drawGulls(ctx, W, H, this.t, 3);
+    if (this.events.some((e) => e.type === "squall")) {
+      PixelVFX.drawLoop(ctx, "lightning/storm-cloud", W * 0.28, seaY + 10, this.t, { palette: "aegean", scale: 1.05 });
+    }
     // distant coast
     ctx.fillStyle = "rgba(74,48,22,0.7)";
     ctx.beginPath();

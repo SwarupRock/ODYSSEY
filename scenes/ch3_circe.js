@@ -9,6 +9,9 @@ import { PAL, drawSky, drawGround, drawRidge, drawTorch, drawOdysseus, drawCirce
 import { ChapterScene, sleep } from "../js/scenefw.js";
 import { Gear } from "../js/gear.js";
 import { HUD, Mech } from "../js/ui.js";
+import { Cinematic } from "../js/combat.js";
+import { PixelVFX } from "../js/pixelvfx.js";
+import { Stick } from "../js/stick.js";
 
 const ING_NAMES = ["herb", "mushroom", "flower", "coral", "honey"];
 const ING_COLORS = ["#7a7f46", "#b0653a", "#c9a13f", "#5f8a8b", "#d19a3f"];
@@ -65,6 +68,11 @@ export class Ch3Scene extends ChapterScene {
 
     HUD.health(3);
     Mech.clear();
+    Stick.setCombatMode(true);
+  }
+
+  cleanup() {
+    Stick.setCombatMode(false);
   }
 
   async intro() {
@@ -120,6 +128,10 @@ export class Ch3Scene extends ChapterScene {
         this.audio.sfx("pickup");
         this.note("Gathered " + ING_NAMES[ing.ing] + " (" + ING_GLYPHS[ing.ing] + ")");
         this.burst(ing.at * W, this.groundY() - 30, ING_COLORS[ing.ing], 40, 3);
+        PixelVFX.spawn("pickups/collect-burst", ing.at * W, this.groundY() - 30, {
+          palette: ing.ing === 4 || ing.ing === 2 ? "apollo" : "moly",
+          scale: 0.85,
+        });
       }
     }
 
@@ -142,6 +154,11 @@ export class Ch3Scene extends ChapterScene {
           b.state = "lurk";
           b.t = 2.2;
           if (Math.abs(b.at - this.playerX) < 0.07) {
+            PixelVFX.spawn("melee/claw-swipe", this.playerX * W, this.groundY() - 32, {
+              flip: b.at > this.playerX,
+              palette: "blood",
+              scale: 0.9,
+            });
             if (this.hitPlayer(b.at * this.engine.W, this.groundY() - 40) === "hit") {
               this.hp--; HUD.health(this.hp);
             }
@@ -173,6 +190,8 @@ export class Ch3Scene extends ChapterScene {
         this.potion = null;
         this.audio.sfx("potion");
         this.burst(pig.at * W, this.groundY() - 20, PAL.bronzeBright, 50, 4);
+        PixelVFX.spawn("holy/heal", pig.at * W, this.groundY(), { palette: "moly", scale: 1.05 });
+        PixelVFX.spawn("nature/healing-bloom", pig.at * W, this.groundY(), { palette: "moly", scale: 0.9 });
         this.note(PIG_NAMES[pigIdx] + " stands upright and weeps! (" + this.pigsCured + "/3)");
         this.updateCureObjective();
         if (this.pigsCured >= 3) this.circeScene();
@@ -188,7 +207,11 @@ export class Ch3Scene extends ChapterScene {
       beast.alive = false;
       this.audio.sfx("sword");
       this.engine.shake(0.7);
-      this.burst(beast.at * W, this.groundY() - 26, PAL.bronze, 50, 4);
+      const bx = beast.at * W, gy = this.groundY();
+      Cinematic.slash(this.playerX * W + this.facing * 24, gy - 44, this.facing, false, Gear.kit().sword.id);
+      Cinematic.impact(bx, gy - 26, PAL.bronzeBright, true);
+      PixelVFX.spawn("spawn/poof", bx, gy, { palette: "rock", scale: 0.9 });
+      this.burst(bx, gy - 26, PAL.bronze, 50, 4);
       this.note("Beast driven off!");
     }
   }
@@ -198,12 +221,36 @@ export class Ch3Scene extends ChapterScene {
       if (k === " " || k === "enter" || k === "escape") this.closeBench();
       return;
     }
-    if (k !== " " && k !== "enter") return;
+    const W = this.engine.W, gy = this.groundY();
+    if (k === "u" || k === "k" || k === "l" || k === "f" || k === "shift") {
+      const map = { u: "uppercut", k: "spin", l: "spear", f: "block", shift: "dash" };
+      const move = map[k];
+      if (k === "shift") this.playerX = Math.max(0.05, Math.min(0.95, this.playerX + this.facing * 0.08));
+      Cinematic.performMove(move, this.playerX * W, gy, this.facing, { swordTier: Gear.kit().sword.id, engine: this.engine });
+      this.audio.sfx(k === "f" ? "block" : "sword");
+      if (move !== "block" && move !== "dash") {
+        const range = move === "spear" ? 0.14 : move === "spin" ? 0.13 : 0.10;
+        const beast = this.beasts.find((b) => b.alive && Math.abs(b.at - this.playerX) < range);
+        if (beast) {
+          beast.alive = false;
+          this.engine.shake(0.7);
+          const bx = beast.at * W;
+          Cinematic.impact(bx, gy - 26, PAL.bronzeBright, true);
+          Cinematic.damageNumber(bx, gy - 46, move === "uppercut" ? 32 : 24, move === "uppercut");
+          PixelVFX.spawn("spawn/poof", bx, gy, { palette: "rock", scale: 0.9 });
+          this.burst(bx, gy - 26, PAL.bronze, 50, 4);
+          this.note("Beast driven off!");
+        }
+      }
+      return;
+    }
+    if (k !== " " && k !== "enter" && k !== "j") return;
     // pig cure / beast strike take priority; otherwise SPACE at the hall opens the bench
     const nearPig = this.pigs.some((p) => !p.cured && Math.abs(p.at - this.playerX) < 0.05);
     const nearBeast = this.beasts.some((b) => b.alive && b.state === "strike" && Math.abs(b.at - this.playerX) < 0.08);
     if (nearPig || nearBeast) return this.handleTap();
     if (Math.abs(this.playerX - 0.47) < 0.06) this.openBench();
+    else Cinematic.performMove("slash", this.playerX * W, gy, this.facing, { swordTier: Gear.kit().sword.id, engine: this.engine });
   }
 
   /* ---------------- bench ---------------- */
@@ -273,6 +320,7 @@ export class Ch3Scene extends ChapterScene {
     if (!RECIPES[key]) {
       this.audio.sfx("error");
       this.note("The brew turns grey. Wrong pairing.");
+      PixelVFX.spawn("explosions/smoke-bomb", 0.47 * this.engine.W, this.groundY() - 10, { palette: "circe", scale: 0.75 });
       for (const i of this.selected) this.inventory[i]++;
       this.selected = [];
       this.renderBench();
@@ -280,6 +328,7 @@ export class Ch3Scene extends ChapterScene {
     }
     this.potion = key;
     this.audio.sfx("potion");
+    PixelVFX.spawn("arcane/magic-circle-cast", 0.47 * this.engine.W, this.groundY(), { palette: "moly", scale: 0.9 });
     this.note("Brewed: " + RECIPES[key]);
     this.updateCureObjective();
     this.closeBench();
@@ -367,6 +416,8 @@ export class Ch3Scene extends ChapterScene {
     ctx.fillRect(hx - 14, gy - 52, 28, 52);
     drawTorch(ctx, hx - 40, gy, this.t, 46);
     drawTorch(ctx, hx + 40, gy, this.t * 1.1, 46);
+    PixelVFX.drawLoop(ctx, "critters/butterfly", W * 0.25, gy - 48, this.t, { palette: "apollo", scale: 0.6 });
+    PixelVFX.drawLoop(ctx, "critters/butterfly", W * 0.76, gy - 54, this.t + 1.3, { palette: "moly", scale: 0.55, flip: true });
 
     // ingredient pickups
     this.ings.forEach((o, i) => {
@@ -406,21 +457,19 @@ export class Ch3Scene extends ChapterScene {
 
     // circe on the porch after curing all
     if (this.pigsCured >= 3) {
+      PixelVFX.drawLoop(ctx, "arcane/rune-circle", hx + 20, gy - 4, this.t, { palette: "circe", scale: 0.78 });
       drawCirce(ctx, hx + 20, gy - 6, 1.05, -1, this.t);
       drawNameTag(ctx, hx + 20, gy - 52, "CIRCE");
     }
 
     // player
-    drawOdysseus(ctx, this.playerX * W, gy, 1.05, this.facing, this.t, false, true, Gear.kit());
-    drawNameTag(ctx, this.playerX * W, gy - 104, "ODYSSEUS");
+    const heroPose = Cinematic.getHeroPose();
+    drawOdysseus(ctx, this.playerX * W, gy, 1.05, this.facing, this.t, false, true, Gear.kit(), heroPose);
+    drawNameTag(ctx, this.playerX * W, gy - 104 + (heroPose ? (heroPose.dy || 0) : 0), "ODYSSEUS");
 
-    // potion bubble above head
+    // glowing pixelfx potion above head when carrying
     if (this.potion) {
-      ctx.fillStyle = PAL.bronzeBright;
-      ctx.font = "bold 14px serif";
-      ctx.textAlign = "center";
-      ctx.fillText("potion", this.playerX * W, gy - 122 + Math.sin(this.t * 4) * 3);
-      ctx.textAlign = "start";
+      PixelVFX.drawLoop(ctx, "pickups/potion", this.playerX * W + 24 * this.facing, gy - 92, this.t, { palette: "moly", scale: 0.65 });
     }
 
     // bench button (DOM)

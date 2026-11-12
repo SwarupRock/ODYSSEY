@@ -9,6 +9,7 @@ import { PAL, drawSky, drawGround, drawRidge, drawGhost, drawTiresias, drawOdyss
 import { ChapterScene, sleep } from "../js/scenefw.js";
 import { Gear } from "../js/gear.js";
 import { HUD, Mech, Choices } from "../js/ui.js";
+import { PixelVFX } from "../js/pixelvfx.js";
 
 const GHOST_LINES = [
   { who: "ELPENOR'S SHADE", text: "Captain… my bones lie unbured on Circe's floor. Bury me, and my ghost can rest." },
@@ -76,6 +77,8 @@ export class Ch4Scene extends ChapterScene {
 
   async ghostMeet(i) {
     const line = GHOST_LINES[i];
+    const W = this.engine.w, gy = this.groundY();
+    PixelVFX.spawn("spawn/soul-rise", W * 0.68, gy - 6, { palette: "underworld", scale: 1.8 });
     await this.say(
       { who: "NARRATOR", text: "A shade broke from the flock of the dead and drank deep of the black blood. Its eyes found yours — eyes that remembered." },
       line
@@ -92,6 +95,8 @@ export class Ch4Scene extends ChapterScene {
 
   async tiresiasScene() {
     this.audio.sfx("gate");
+    const W = this.engine.w, gy = this.groundY();
+    PixelVFX.spawn("arcane/magic-circle-cast", W * 0.72, gy - 4, { palette: "underworld", scale: 2.0 });
     await this.say(
       { who: "NARRATOR", text: "Last of all came the blind prophet, staff in hand, knowing the way without eyes." },
       { who: "TIRESIAS", text: "Odysseus. You want the road home. First hear the price of it." },
@@ -138,6 +143,7 @@ export class Ch4Scene extends ChapterScene {
     if (Gear.award("armor", 3)) {
       this.showGearChip();
       this.audio.sfx("reveal");
+      PixelVFX.spawn("pickups/loot-beam", this.engine.w * 0.28, this.groundY() - 6, { palette: "apollo", scale: 1.9 });
       await this.say(
         { who: "ACHILLES", text: "I would rather be a living thrall than a crowned king of the dead. Take my armor — it is wasted on a ghost." },
         { who: "NARRATOR", text: "The Armor of Achilles: no cup, no club, no sword bites deep through it." }
@@ -196,22 +202,30 @@ export class Ch4Scene extends ChapterScene {
     if (this.progress < 0.12) {
       ctx.fillStyle = "#3a1410";
       ctx.beginPath(); ctx.ellipse(W * 0.1, gy + 8, 40, 10, 0, 0, Math.PI * 2); ctx.fill();
+      PixelVFX.drawLoop(ctx, "fire/spirit-flame", W * 0.1, gy + 4, this.t, { palette: "blood", scale: 1.6, alpha: 0.72 });
     }
 
     // ghost flock
     for (let i = 0; i < 7; i++) {
       const gx = ((i * 260 + 130 - scroll) % (W + 160) + W + 160) % (W + 160) - 80;
       drawGhost(ctx, gx, gy - 4, 0.9, this.t, i);
+      if (i % 2 === 0) {
+        PixelVFX.drawLoop(ctx, "critters/wisp", gx + Math.sin(this.t * 1.4 + i) * 18, gy - 46 - (i % 3) * 10, this.t + i * 0.37, { palette: "underworld", scale: 1.25, alpha: 0.7 });
+      } else if (i === 3) {
+        PixelVFX.drawLoop(ctx, "critters/ghost", gx - 24, gy - 14, this.t + i * 0.5, { palette: "underworld", scale: 1.35, alpha: 0.55 });
+      }
     }
 
     // the ghost currently speaking glows a little brighter
     if (this.state === "meet") {
+      PixelVFX.drawLoop(ctx, "critters/wisp", W * 0.68, gy - 54, this.t, { palette: "underworld", scale: 1.6, alpha: 0.85 });
       drawGhost(ctx, W * 0.68, gy - 4, 1.25, this.t, 99);
       drawNameTag(ctx, W * 0.68, gy - 102, (GHOST_TAGS[this.met] || "SHADE") + "'S SHADE");
     }
 
     // tiresias appears at the end
     if (this.progress > 0.85 || this.state === "tiresias") {
+      PixelVFX.drawLoop(ctx, "arcane/rune-circle", W * 0.72, gy + 4, this.t * 0.85, { palette: "underworld", scale: 1.7, alpha: 0.65 });
       drawTiresias(ctx, W * 0.72, gy - 2, 1.2, this.t);
       drawNameTag(ctx, W * 0.72, gy - 92, "TIRESIAS");
     }

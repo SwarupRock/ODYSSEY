@@ -86,6 +86,9 @@
       <h1 class="game-title">ODYSSEY</h1>
       <p class="game-sub">The long way home</p>
       <div class="cc-meander"></div>
+      <div id="home-update-alert" class="home-update-alert hidden">
+        <span id="home-update-alert-text">Mandatory update required — update below to play</span>
+      </div>
       <div class="title-buttons">
         <button class="btn-stone btn-hero" id="btn-new-game">Begin the Voyage</button>
         <button class="btn-stone hidden" id="btn-continue">Continue Voyage</button>
@@ -94,6 +97,32 @@
         <button class="btn-stone hidden" id="btn-install">⤓ Install on this device</button>
       </div>
       <p class="title-hint">a 45–75 minute tale of hubris · trials · homecoming</p>
+      <div class="update-strip" id="update-strip">
+        <span id="app-version-label">v1.2.0 · Build 2</span>
+        <span class="us-dot">·</span>
+        <span id="update-status-text">Checking version…</span>
+        <button class="us-btn" id="btn-check-update" type="button">↻ Check Updates</button>
+      </div>
+    </div>
+
+    <!-- Mandatory In-App Update Gate (blocks play until updated) -->
+    <div id="update-modal" class="update-modal hidden">
+      <div class="update-card">
+        <div class="cc-meander"></div>
+        <div class="uc-badge">UPDATE REQUIRED</div>
+        <h2 class="uc-title">New Voyage Update Ready</h2>
+        <div class="uc-ver" id="update-target-ver">v1.2.0 → v1.2.1</div>
+        <p class="uc-notes" id="update-notes-text">New updates have arrived. Update inside the app to continue playing.</p>
+        <button class="btn-stone btn-hero uc-btn" id="btn-update-now" type="button">⬇ Update Now</button>
+        <div class="uc-prog-wrap hidden" id="update-progress-wrap">
+          <div class="uc-prog-track"><div class="uc-prog-fill" id="update-progress-fill"></div></div>
+          <div class="uc-prog-label" id="update-progress-label">Preparing download…</div>
+        </div>
+        <p class="uc-error hidden" id="update-error-text"></p>
+        <button class="btn-stone hidden" id="btn-update-retry" type="button">↻ Retry Update</button>
+        <p class="uc-lock-note">Playing is locked until this update is installed.</p>
+        <div class="cc-meander"></div>
+      </div>
     </div>
   </section>
 
