@@ -30,6 +30,7 @@ export const Stick = {
       <div id="action-buttons">
         <button id="btn-bow" class="tbtn">🏹</button>
         <button id="btn-act" class="tbtn">ACT</button>
+        <button id="btn-dodge" class="tbtn hidden">DODGE</button>
       </div>`;
     document.body.appendChild(wrap);
 
@@ -119,6 +120,7 @@ export const Stick = {
     };
     press("btn-act", " ");
     press("btn-bow", "bow");
+    press("btn-dodge", "dodge");
 
     // show BOW only when the hero owns one
     this.refreshBow();
@@ -131,9 +133,30 @@ export const Stick = {
     b.classList.toggle("hidden", !Gear.kit().bow.power);
   },
 
+  setDodgeVisible(on) {
+    const b = document.getElementById("btn-dodge");
+    if (b) b.classList.toggle("hidden", !on);
+  },
+
   /** screens want the pad out of the way; scenes want it back */
   setInGame(on) {
     const el = document.getElementById("touch-controls");
     if (el) el.classList.toggle("hidden", !on);
+    if (!on) this.setDodgeVisible(false);
+  },
+
+  /** reset joystick position and engine axes back to neutral */
+  reset() {
+    if (this.engine) {
+      this.engine.stickX = 0;
+      this.engine.stickY = 0;
+    }
+    const base = document.getElementById("stick-base");
+    const nub = document.getElementById("stick-nub");
+    if (base) base.classList.remove("live");
+    if (nub) nub.style.transform = "translate(0px, 0px)";
+    document.querySelectorAll("#touch-controls .tbtn.pressed").forEach((button) => {
+      button.classList.remove("pressed");
+    });
   },
 };

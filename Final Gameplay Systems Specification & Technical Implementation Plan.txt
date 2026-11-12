@@ -1,0 +1,374 @@
+# ODYSSEY
+## Final Gameplay Systems Specification & Technical Implementation Plan
+
+**Document version:** 1.1  
+**Status:** Design approved — implementation pending  
+**Engine:** JavaScript Canvas 2D  
+**Platforms:** Android and Web  
+**Implementation strategy:** Incremental modernisation
+
+---
+
+# Part A — Finalised Gameplay Decisions
+
+## 1. Core design principles
+
+1. Preserve the existing seven-section structure: Prologue and Chapters I–VI.
+2. Build shared gameplay systems that work across all chapters.
+3. Retain the existing Canvas engine and modernise it incrementally.
+4. Prioritise responsive controls, readable combat and cinematic presentation.
+5. Keep the game playable throughout development.
+6. Maintain compatibility with Android WebView and browser builds.
+7. Preserve existing story progress and support save migration.
+
+## 2. Movement
+
+The shared movement system will support:
+
+- Walking and running.
+- Grounded jumping.
+- Variable jump height where appropriate.
+- Directional dodging.
+- Consistent collision detection.
+- Responsive keyboard and touch input.
+- Contextual interaction.
+
+Initial tuning targets:
+
+| Parameter | Starting target |
+|---|---:|
+| Running speed | 1.6× walking speed |
+| Dodge duration | 0.3–0.4 seconds |
+| Dodge invulnerability | 0.18 seconds |
+| Dodge cooldown | 0.65 seconds |
+| Jump buffer | 100 ms |
+| Coyote time | 100 ms |
+
+These are provisional values requiring playtesting.
+
+## 3. Combat and lightweight stamina
+
+Combat uses light attacks, heavy attacks, dodging, parrying, bow attacks and situational abilities.
+
+### Stamina rules
+
+Proposed initial configuration:
+
+| Parameter | Starting value |
+|---|---:|
+| Maximum stamina | 100 |
+| Dodge cost | 20 |
+| Heavy attack cost | 25 |
+| Parry attempt cost | 12 |
+| Regeneration delay | 0.7 seconds |
+| Regeneration rate | 25 points/second |
+| Light attack cost | 0 |
+| Basic movement cost | 0 |
+
+### Behaviour
+
+- Light attacks remain available regardless of stamina.
+- Heavy attacks, dodges and parries require sufficient stamina.
+- Stamina regenerates automatically after the regeneration delay.
+- Spending stamina resets the regeneration delay.
+- Stamina cannot fall below zero.
+- Players cannot repeatedly dodge or parry when exhausted.
+- Stamina does not regenerate during the brief delay after spending it.
+- The system should not punish players for simply moving or exploring.
+
+If stamina is insufficient, the requested special action should not execute. The UI should communicate this clearly.
+
+### Combat identity
+
+- Three-hit light-attack combo.
+- Heavy attacks with longer recovery.
+- Timed parries and counterattack opportunities.
+- Directional dodges with brief invulnerability.
+- Enemy attack telegraphs.
+- Hit reactions, stagger and recovery states.
+- Boss encounters with multiple patterns and phases.
+
+The combat system should emphasise timing, positioning and tactical decisions rather than button-mashing.
+
+## 4. Equipment
+
+Equipment is unlocked through the story and selected by the player.
+
+| Equipment | Intended identity |
+|---|---|
+| Starting Greek sword | Balanced |
+| Moly-tempered sword | Magical counterplay |
+| Aegis half-cape | Defensive |
+| Armor of Achilles | Physical protection |
+| Sword of Hector | High-impact melee |
+| Great Bow | Ranged combat |
+
+Equipment effects should remain understandable and meaningfully different.
+
+## 5. Shared gameplay systems
+
+The following systems should be reusable across chapters:
+
+- Movement and traversal.
+- Combat and stamina.
+- Enemy AI.
+- Boss encounters.
+- Equipment and progression.
+- Objectives and contextual tutorials.
+- Checkpoints and recovery.
+- Narrative choices and hubris.
+- Crew morale, trust and story flags.
+- Audio and visual feedback.
+- Input handling and pause behaviour.
+
+## 6. Chapter-specific systems
+
+| Chapter | Specialised gameplay |
+|---|---|
+| Prologue | Tutorial, traversal and introductory combat |
+| I — Polyphemus | Stealth, noise, boss combat and escape |
+| II — Winds | Sailing, ship condition and crew management |
+| III — Circe | Exploration, ingredients, alchemy and magical trial |
+| IV — Underworld | Exploration, spirits, ritual and supernatural trial |
+| V — Sirens and Straits | Rhythm gameplay, navigation and fixed crew losses |
+| VI — Ithaca | Disguise, alliances, bow challenge and palace combat |
+
+The chapter-specific systems should use common input, UI, pause and save infrastructure wherever practical.
+
+## 7. Narrative progression
+
+Persistent narrative variables:
+
+- Hubris.
+- Major player decisions.
+- Crew morale and trust.
+- Named crew status and losses.
+- Equipment unlocks.
+- Completed chapters.
+- Important story flags.
+
+The existing hubris-based ending distinction should be retained initially and rebalanced after the redesigned choices are implemented.
+
+The narrative pass must also address Eurylochus's role in Chapter III and the cattle of the Sun episode without adding an eighth playable section.
+
+---
+
+# Part B — Technical Implementation Plan
+
+## Phase 0 — Establish a safe baseline
+
+**Objective:** Understand the actual codebase before making changes.
+
+Tasks:
+
+1. Inspect the repository and identify the current release baseline.
+2. Identify the root game files and Android-packaged copies.
+3. Compare duplicate files and identify synchronisation requirements.
+4. Inspect the existing game loop and scene lifecycle.
+5. Inspect the existing keyboard, pointer and touch input handling.
+6. Inspect the existing combat and gear systems.
+7. Inspect the save and migration logic.
+8. Establish the existing Android build and browser launch procedures.
+9. Identify existing regressions and potential compatibility risks.
+
+Deliverable: Technical Audit and Implementation Readiness Report.
+
+**No gameplay changes should be made during this phase.**
+
+## Phase 1 — Stabilise the shared foundation
+
+**Objective:** Make the current engine reliable enough to support new mechanics.
+
+Priority tasks:
+
+- Standardise input handling.
+- Fix pointer cancellation and stuck-input scenarios.
+- Ensure held controls are released correctly.
+- Prevent gameplay actions during incompatible dialogue states.
+- Standardise scene pause, resume and restart behaviour.
+- Validate chapter transitions.
+- Improve error handling and state cleanup.
+
+Particular attention should be paid to touch cancellation and scene-specific input handlers.
+
+Deliverable: Stable shared input and scene lifecycle.
+
+## Phase 2 — Implement shared movement
+
+**Objective:** Establish consistent movement behaviour.
+
+Tasks:
+
+- Standardise movement actions.
+- Implement reusable walking and running.
+- Implement jumping and grounded-state detection.
+- Implement directional dodge.
+- Add collision and movement-state handling.
+- Connect keyboard and touch inputs.
+- Validate camera interaction.
+
+Deliverable: A reusable movement prototype.
+
+## Phase 3 — Implement combat and stamina
+
+**Objective:** Establish the redesigned combat foundation.
+
+Tasks:
+
+1. Create a shared stamina state.
+2. Add stamina consumption and regeneration.
+3. Implement light and heavy attack handling.
+4. Implement dodge and parry interactions.
+5. Add hit detection and damage handling.
+6. Standardise enemy combat states.
+7. Add hit-stop, knockback and stagger feedback.
+8. Add combat HUD integration.
+9. Validate combat using a small test encounter.
+
+Deliverable: Reusable combat prototype with lightweight stamina.
+
+## Phase 4 — Progression and persistence
+
+**Objective:** Make gameplay progression reliable.
+
+Tasks:
+
+- Extend the save structure with versioning.
+- Preserve existing v1.0.0 save information where possible.
+- Add equipment unlock and selection state.
+- Add narrative decision flags.
+- Add hubris tracking.
+- Add crew morale and trust.
+- Add checkpoint state.
+- Validate interrupted-save recovery.
+
+Deliverable: Versioned campaign progression system.
+
+## Phase 5 — First integrated chapter: Prologue
+
+**Objective:** Use the Prologue as the first complete demonstration of the redesigned systems.
+
+Implement:
+
+- Cinematic Trojan Horse introduction.
+- Movement and traversal.
+- Jumping and environmental hazards.
+- Basic enemy encounters.
+- Combat tutorial.
+- Optional Trojan Captain encounter.
+- Meaningful story choices.
+- Hubris tracking.
+- Checkpoint and recovery.
+- Cinematic transition to Chapter I.
+
+Deliverable: Complete redesigned Prologue vertical slice.
+
+## Phase 6 — Chapter-by-chapter implementation
+
+Implement the remaining chapters in order, integrating their specialised mechanics with the shared systems.
+
+Each chapter must pass its own gameplay, narrative, save and platform tests before moving on.
+
+## Phase 7 — Polish and release
+
+Tasks:
+
+- Painterly visual overhaul.
+- Character animation and enemy animation.
+- Improved environments and backgrounds.
+- Audio and voice improvements.
+- Cinematic transitions.
+- UI and accessibility.
+- Android performance optimisation.
+- Web compatibility.
+- Offline/PWA validation.
+- Full playthrough and regression testing.
+
+Deliverable: Release candidate.
+
+---
+
+# Part C — Initial Technical Priorities
+
+| Priority | Area | Reason |
+|---|---|---|
+| P0 | Repository and build audit | Prevent accidental breakage |
+| P0 | Root/Android asset synchronisation | Ensure both platforms use the same game |
+| P1 | Input handling | Foundation of every gameplay mechanic |
+| P1 | Scene lifecycle | Prevent stuck controls and state leakage |
+| P2 | Movement | Shared gameplay foundation |
+| P2 | Combat and stamina | Core action-adventure mechanics |
+| P3 | Save and progression | Preserve campaign continuity |
+| P4 | Prologue redesign | First complete integration milestone |
+
+---
+
+# Part D — Testing Requirements
+
+Every major system must be tested in both browser and Android environments.
+
+### Input testing
+
+- Keyboard input.
+- Touch input.
+- Simultaneous input.
+- Pointer cancellation.
+- Rapid repeated inputs.
+- Pause and resume.
+- Scene transitions.
+
+### Combat testing
+
+- Stamina consumption.
+- Stamina regeneration.
+- Insufficient stamina.
+- Attack interruptions.
+- Dodge invulnerability.
+- Parry timing.
+- Enemy stagger.
+- Boss phase transitions.
+
+### Save testing
+
+- Fresh campaign.
+- Existing save migration.
+- Checkpoint reload.
+- Chapter completion.
+- Equipment unlocks.
+- Narrative flags.
+- Application interruption.
+
+### Platform testing
+
+- Desktop browser.
+- Mobile browser.
+- Android WebView.
+- Different aspect ratios.
+- Offline behaviour.
+- Audio and voice fallback.
+
+---
+
+# Part E — First Development Milestone
+
+## Milestone 1: Technical readiness
+
+Before implementing the new combat system, complete a repository audit and establish a reliable development baseline.
+
+**Acceptance criteria:**
+
+- The existing game launches successfully.
+- All seven existing sections can be accessed.
+- Root and Android asset differences are documented.
+- Existing save behaviour is understood.
+- Input and scene lifecycle issues are documented.
+- No existing gameplay has been unintentionally changed.
+- A safe development branch exists.
+
+## Final implementation philosophy
+
+ODYSSEY should evolve from its existing foundations rather than lose its identity through an unnecessary rewrite.
+
+We will build the shared systems first, prove them in a small playable prototype, integrate them into the Prologue and then carry them through the remaining journey.
+
+**The journey makes the legend. The choices define the king.**

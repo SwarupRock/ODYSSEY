@@ -288,8 +288,8 @@ function bindUI() {
     if (e.repeat) return; // movement keys are polled, not edge-triggered
     const k = e.key.toLowerCase();
 
-    // in-game escape: return to home screen
-    if (k === "escape" && currentIdx >= 0) {
+    // in-game escape: return to home screen (or exit dev test scene)
+    if (k === "escape" && (currentIdx >= 0 || currentScene)) {
       returnHome();
       e.preventDefault();
       return;
@@ -351,6 +351,11 @@ function bindUI() {
       if (sc.onActionKey) sc.onActionKey("bow");
       return;
     }
+    if (k === "c" || k === "k") {
+      if (sc.onActionKey) sc.onActionKey("dodge");
+      e.preventDefault();
+      return;
+    }
     if (sc.onActionKey) { sc.onActionKey(k); return; }
     if (k === " ") { // generic fallback: center-screen tap
       sc.handleTap && sc.handleTap(engine.W / 2, engine.H / 2);
@@ -380,6 +385,29 @@ try {
   engine.start();
   bindUI();
   showScreen("title");
+
+  // Development-only test scene launcher for Phase 2A
+  window.odysseyTestMovement = async () => {
+    try {
+      const { MovementTestScene } = await import("./movement.js");
+      if (currentScene && currentScene.cleanup) {
+        try { currentScene.cleanup(); } catch (e) { console.warn(e); }
+      }
+      currentIdx = -100; // special non-campaign index
+      showScreen(null);
+      const btnHome = $("btn-home");
+      if (btnHome) btnHome.classList.remove("hidden");
+      currentScene = new MovementTestScene(engine, Audio, {
+        title: "Movement Test Lab",
+        chapterLabel: "Dev Lab",
+      });
+      engine.setScene(currentScene);
+      await currentScene.begin();
+      console.log("ODYSSEY: MovementTestScene active. Press ESC or click Home to return.");
+    } catch (err) {
+      console.error("Failed to launch odysseyTestMovement:", err);
+    }
+  };
 } catch (e) {
   console.error("boot failed", e);
 }

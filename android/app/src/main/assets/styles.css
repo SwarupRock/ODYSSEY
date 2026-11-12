@@ -142,6 +142,10 @@ h1, h2, h3 { font-weight: 700; }
   color: #ffd27a;
   text-shadow: 0 0 10px rgba(255,190,90,0.4);
 }
+#btn-dodge {
+  color: var(--bronze-bright);
+  font-size: clamp(11px, 2.8vmin, 15px);
+}
 .tbtn.pressed {
   background: radial-gradient(circle at 50% 40%, rgba(190,64,42,0.8), rgba(142,47,37,0.5));
   border-color: var(--bronze-bright);
@@ -154,9 +158,13 @@ h1, h2, h3 { font-weight: 700; }
 #touch-controls { display: block; }
 #touch-controls.hidden { display: none !important; }
 
-/* while dialogue is open the controls step back (still tappable
-   for the stick, but visually out of the text's way) */
-body.dlg-open #touch-controls { opacity: 0.22; transition: opacity 0.3s ease; }
+/* while dialogue is open the controls step back (suppressed
+   from touches so background actions cannot be triggered) */
+body.dlg-open #touch-controls {
+  opacity: 0.22;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease;
+}
 #touch-controls { transition: opacity 0.3s ease; }
 
 /* persistent gear chip (armor · sword · bow) */

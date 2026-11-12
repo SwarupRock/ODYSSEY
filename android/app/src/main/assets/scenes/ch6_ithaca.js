@@ -13,6 +13,8 @@ import { HUD, Mech } from "../js/ui.js";
 import { Gear } from "../js/gear.js";
 import { Fx } from "../js/fx.js";
 import { Cinematic } from "../js/combat.js";
+import { MovementController } from "../js/movement.js";
+import { Stick } from "../js/stick.js";
 
 export class Ch6Scene extends ChapterScene {
   initState() {
@@ -22,6 +24,14 @@ export class Ch6Scene extends ChapterScene {
     this.phase = "arrive";
     this.playerX = 0.2;
     this.facing = 1;
+    this.controller = new MovementController({
+      coordMode: "normalized",
+      baseSpeed: 0.3,
+      minX: 0.08,
+      maxX: 0.72,
+      capabilities: { run: false, jump: false, dodge: true },
+      dodgeDistance: 0.13,
+    });
     this.hp = 4;
     this.enemies = [];
     this.volley = [];
@@ -63,6 +73,7 @@ export class Ch6Scene extends ChapterScene {
     }
 
     this.phase = "volley";
+    Stick.setDodgeVisible(true);
     this.setupVolley();
     this.objective("Move with <span class=\"kbd\">A</span>/<span class=\"kbd\">D</span> (or hold sides) — <span class=\"kbd\">A</span>/<span class=\"kbd\">D</span> again to dodge the volleys");
   }
@@ -84,11 +95,9 @@ export class Ch6Scene extends ChapterScene {
     el.textContent = "Suitors: " + n;
   }
 
-  tickVolley(dt) {
+  tickVolley(dt, timing = {}) {
     const W = this.engine.W;
-    const kbd = this.engine.axisX();
-    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.3;
-    this.playerX = Math.max(0.08, Math.min(0.72, this.playerX));
+    this.updatePlayerMovement(dt, timing, 0.3, 0.08, 0.72);
 
     this.volleySurvive -= dt;
     if (this.volleySurvive <= 0) {
@@ -133,7 +142,7 @@ export class Ch6Scene extends ChapterScene {
     this.volley = this.volley.filter((v) => v.x > -0.1 && !v.hit);
   }
 
-  tick(dt) {
+  tick(dt, timing = {}) {
     // hearthlight embers drifting up the great hall
     this._fl = (this._fl || 0) + dt;
     if (this._fl > 0.25) {
@@ -141,9 +150,22 @@ export class Ch6Scene extends ChapterScene {
       const W = this.engine.W;
       Fx.spawnEmbers(W * (0.17 + Math.random() * 0.66), this.groundY() - this.engine.H * 0.18, 2, 12);
     }
-    if (this.phase === "volley") this.tickVolley(dt);
-    else if (this.phase === "wave") this.tickWave(dt);
-    else if (this.phase === "duel") this.tickDuel(dt);
+    if (this.phase === "volley") this.tickVolley(dt, timing);
+    else if (this.phase === "wave") this.tickWave(dt, timing);
+    else if (this.phase === "duel") this.tickDuel(dt, timing);
+    Stick.setDodgeVisible(
+      (this.phase === "volley" || this.phase === "wave" || this.phase === "duel") &&
+      this.state !== "down"
+    );
+  }
+
+  updatePlayerMovement(dt, timing, speed, minX, maxX) {
+    this.controller.setBoundaries(minX, maxX);
+    this.controller.baseSpeed = speed;
+    const axisX = Math.max(-1, Math.min(1, (this._holdDir || 0) + this.engine.axisX()));
+    this.playerX = this.controller.updateHorizontal(this.playerX, axisX, dt, {
+      hitStop: timing.hitStop,
+    });
   }
 
   endVolley() {
@@ -172,7 +194,8 @@ export class Ch6Scene extends ChapterScene {
     this.objective("Strike with <span class=\"kbd\">SPACE</span> when a suitor is close — dodge his lunge with <span class=\"kbd\">A</span>/<span class=\"kbd\">D</span>");
   }
 
-  tickWave(dt) {
+  tickWave(dt, timing = {}) {
+    this.updatePlayerMovement(dt, timing, 0.3, 0.08, 0.72);
     for (const e of this.enemies) {
       if (e.state === "approach") {
         e.x -= e.speed * dt;
@@ -252,8 +275,9 @@ export class Ch6Scene extends ChapterScene {
   }
 
   damage() {
+    if (this.controller.isInvulnerable()) return false;
     // armor gets its say first (Aegis can turn a cup or a sword entirely)
-    if (this.hitPlayer(this.playerX * this.engine.W, this.groundY() - 40) === "blocked") return;
+    if (this.hitPlayer(this.playerX * this.engine.W, this.groundY() - 40) === "blocked") return false;
     Fx.hit();
     this.hp--;
     HUD.health(this.hp);
@@ -261,6 +285,7 @@ export class Ch6Scene extends ChapterScene {
     this.engine.shake(1.6);
     this.burst(this.playerX * this.engine.W, this.groundY() - 40, PAL.blood, 60, 5);
     if (this.hp <= 0) this.knockedDown();
+    return true;
   }
 
   async knockedDown() {
@@ -298,11 +323,9 @@ export class Ch6Scene extends ChapterScene {
     this.audio.playDrumLoop(112, 8, "x..x.x..");
   }
 
-  tickDuel(dt) {
+  tickDuel(dt, timing = {}) {
     const d = this.duel;
-    const kbd = this.engine.axisX();
-    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.28;
-    this.playerX = Math.max(0.1, Math.min(0.6, this.playerX));
+    this.updatePlayerMovement(dt, timing, 0.28, 0.1, 0.6);
 
     const antX = 0.74;
     const dist = antX - this.playerX;
@@ -327,7 +350,7 @@ export class Ch6Scene extends ChapterScene {
       case "lunge":
         d.timer -= dt;
         if (d.timer <= 0) {
-          if (dist < 0.3 && !(this.dash > 0)) this.damage();
+          if (dist < 0.3) this.damage();
           d.phase = "recover";
           d.timer = 0.9;
           this.audio.sfx("thud");
@@ -348,8 +371,6 @@ export class Ch6Scene extends ChapterScene {
         }
         break;
     }
-
-    if (this.dash > 0) this.dash -= dt;
 
     // arrows vs Antinous: a timed shaft during his windup spoils the lunge
     const W = this.engine.W, gy = this.groundY();
@@ -398,25 +419,33 @@ export class Ch6Scene extends ChapterScene {
   }
 
   dodge(dir) {
-    if (this.phase === "volley" || this.phase === "wave" || this.phase === "duel") {
-      this.dash = 0.35;
-      this.playerX += dir * 0.13;
-      this.audio.sfx("footstep");
-    }
+    if (this.state === "down" || this.phase === "won" || this.phase === "end-pan") return false;
+    if (this.phase !== "volley" && this.phase !== "wave" && this.phase !== "duel") return false;
+    if (!this.controller.dodge(dir)) return false;
+    this.audio.sfx("footstep");
+    return true;
   }
 
   onActionKey(k) {
     if (k === "a" || k === "d") this.dodge(k === "a" ? -1 : 1);
+    if (k === "dodge") this.dodge(this.engine.axisX());
     if (k === " " || k === "enter") this.handleTap();
     if (k === "bow") {
       this.shootBow({ x: this.playerX * this.engine.W + this.aimDir * 22, y: this.groundY() - 110, speed: 900 });
     }
   }
 
+  cleanup() {
+    this.controller?.resetDodge();
+    Stick.setDodgeVisible(false);
+    Mech.hide();
+  }
+
   /* ---------------- ending ---------------- */
 
   async victory() {
     this.phase = "won";
+    Stick.setDodgeVisible(false);
     Mech.hide();
     this.objective(null);
     this.audio.sfx("flare");
@@ -547,8 +576,10 @@ export class Ch6Scene extends ChapterScene {
 
     // player
     if (this.phase !== "end-pan") {
-      drawOdysseus(ctx, this.playerX * W, gy, 1.08, 1, this.t, true, true, Gear.kit());
-      drawNameTag(ctx, this.playerX * W, gy - 86, "ODYSSEUS");
+      if (!(this.controller.isDodging() && Math.floor(this.t * 20) % 2 === 0)) {
+        drawOdysseus(ctx, this.playerX * W, gy, 1.08, this.controller.facing, this.t, true, true, Gear.kit());
+        drawNameTag(ctx, this.playerX * W, gy - 86, "ODYSSEUS");
+      }
       // bow arm while loosing, shield of the equipped armor at his side
       if ((this.phase === "volley" || this.phase === "wave" || this.phase === "duel") && this.bowCd > 0.18) {
         drawBow(ctx, this.playerX * W + this.aimDir * 16, gy - 44, this.aimDir, Math.min(1, this.bowCd * 2), this.t);

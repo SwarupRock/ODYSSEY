@@ -45,7 +45,11 @@ export const Dialogue = {
     this.idx = 0;
     this.onDone = onDone;
     $("dialogue").classList.remove("hidden");
-    document.body.classList.add("dlg-open"); // dim the touch controls
+    document.body.classList.add("dlg-open"); // suppress touch controls
+    // Reset joystick or button holds so moving when dialogue opens stops immediately
+    try {
+      import("./stick.js").then(({ Stick }) => Stick.reset && Stick.reset()).catch(() => {});
+    } catch {}
     this._startLine();
   },
 

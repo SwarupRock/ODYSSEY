@@ -338,6 +338,18 @@ export class Ch5Scene extends ChapterScene {
     }
   }
 
+  onPointerCancel() {
+    this._holdSide = 0;
+    // On cancellation (e.g. system gesture / call / interrupt), do not judge hold release as a whiff
+    if (this.phase === "sirens" && this.r) {
+      for (const n of this.r.notes) {
+        if (n.holding && !n.done) {
+          n.holding = false;
+        }
+      }
+    }
+  }
+
   onPointerUp() {
     this._holdSide = 0;
     this.releaseHolds();
