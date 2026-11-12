@@ -1,18 +1,20 @@
 /* ============================================================
    ODYSSEY — Chapter 4: The Underworld (Nekyia)
-   Atmospheric walking chapter. Minimal mechanics: hold to walk,
-   release to listen. Ghosts of the dead; Tiresias prophecy.
-   Dialogue-heavy by design.
+   Atmospheric walking chapter. Hold anywhere on screen or hold
+   the joystick to walk forward through the Road of Asphodel.
+   Human shades of the dead (Elpenor, Anticleia, Agamemnon, Achilles)
+   and Tiresias's prophecy.
    ============================================================ */
 
-import { PAL, drawSky, drawGround, drawRidge, drawGhost, drawTiresias, drawOdysseus, drawMeander, drawNameTag } from "../js/art.js";
+import { PAL, drawSky, drawGround, drawRidge, drawGhost, drawPersonShade, drawTiresias, drawOdysseus, drawMeander, drawNameTag } from "../js/art.js";
 import { ChapterScene, sleep } from "../js/scenefw.js";
 import { Gear } from "../js/gear.js";
 import { HUD, Mech, Choices } from "../js/ui.js";
 import { PixelVFX } from "../js/pixelvfx.js";
+import { Stick } from "../js/stick.js";
 
 const GHOST_LINES = [
-  { who: "ELPENOR'S SHADE", text: "Captain… my bones lie unbured on Circe's floor. Bury me, and my ghost can rest." },
+  { who: "ELPENOR'S SHADE", text: "Captain… my bones lie unburied on Circe's floor. Bury me, and my ghost can rest." },
   { who: "ANTICLEIA'S SHADE", text: "My son. Your mother died of waiting. Not of war — of waiting. Do not let waiting kill what war could not." },
   { who: "AGAMEMNON'S SHADE", text: "I came home a victor. My queen's welcome was a blade in the bath. Trust no floor you cannot see under." },
   { who: "ACHILLES' SHADE", text: "Better a living serf than a king of all the dead. I would trade every verse they sing of me for one gray morning." },
@@ -32,8 +34,15 @@ export class Ch4Scene extends ChapterScene {
     this.state = "walk";
     this._spoken = new Set();
 
-    Mech.set(`<div class="vitals"><div class="vit-chip" id="uw-hint">hold anywhere — walk</div></div>`);
+    Stick.setInGame(true);
+    Stick.setCombatMode(false);
+
+    Mech.set(`<div class="vitals"><div class="vit-chip" id="uw-hint">hold joystick or tap anywhere to walk</div></div>`);
     HUD.health(-1);
+  }
+
+  cleanup() {
+    Stick.setCombatMode(false);
   }
 
   async intro() {
@@ -43,20 +52,30 @@ export class Ch4Scene extends ChapterScene {
       { who: "ODYSSEUS", text: "And Tiresias?" },
       { who: "CIRCE", text: "He comes last. The true things are said last." }
     );
-    this.objective("Walk the road of shades — hold <span class=\"kbd\">D</span> to move; stop for the dead who drink");
+    this.objective("Walk the road of shades — push joystick or hold screen to move; stop for the dead who drink");
   }
 
   onPointerDown() { this.hold = 1; }
   onPointerUp() { this.hold = 0; }
 
+  onActionKey(k) {
+    if (k === " " || k === "enter" || k === "d" || k === "arrowright") {
+      this.hold = 1;
+    }
+  }
+
   tick(dt) {
     if (this.state === "walk") {
-      const kbd = this.engine.axisX() > 0 ? 1 : 0;
-      const walking = (this.hold || kbd) > 0;
+      const stickMag = Math.hypot(this.engine.stickX || 0, this.engine.stickY || 0);
+      const stickActive = stickMag > 0.08 || Math.abs(this.engine.axisX()) > 0.08 || Math.abs(this.engine.axisY()) > 0.08;
+      const kbd = this.engine.keyDown("ArrowRight", "d", "D", "ArrowUp", "w", "W", " ");
+      const walking = (this.hold > 0 || stickActive || kbd);
+
       if (walking) {
-        this.progress = Math.min(1, this.progress + dt * 0.035);
-        this.stepAcc = (this.stepAcc || 0) + dt;
-        if (this.stepAcc > 0.5) { this.stepAcc = 0; this.audio.sfx("footstep"); }
+        const spd = stickMag > 0.1 ? Math.max(0.7, Math.min(1.45, stickMag * 1.35)) : 1.0;
+        this.progress = Math.min(1, this.progress + dt * 0.040 * spd);
+        this.stepAcc = (this.stepAcc || 0) + dt * spd;
+        if (this.stepAcc > 0.45) { this.stepAcc = 0; this.audio.sfx("footstep"); }
       }
 
       // ghost encounters at fixed points
@@ -160,6 +179,8 @@ export class Ch4Scene extends ChapterScene {
     startNext();
   }
 
+  groundY() { return this.engine.H * 0.8; }
+
   /** screen anchor of the hero for the rim-light pass */
   heroScreen() {
     return { x: this.engine.W * 0.3, y: this.engine.H * 0.8 - 55, s: 1.05 };
@@ -167,7 +188,7 @@ export class Ch4Scene extends ChapterScene {
 
   draw(ctx) {
     const eng = this.engine, W = eng.W, H = eng.H;
-    const gy = H * 0.8;
+    const gy = this.groundY();
     const scroll = this.progress * W * 2.2;
 
     // asphodel gloom — muted, NOT literal black (per art direction)
@@ -205,33 +226,35 @@ export class Ch4Scene extends ChapterScene {
       PixelVFX.drawLoop(ctx, "fire/spirit-flame", W * 0.1, gy + 4, this.t, { palette: "blood", scale: 1.6, alpha: 0.72 });
     }
 
-    // ghost flock
+    // Human shades of Greek dead flocking along the River of Lamentation
     for (let i = 0; i < 7; i++) {
       const gx = ((i * 260 + 130 - scroll) % (W + 160) + W + 160) % (W + 160) - 80;
-      drawGhost(ctx, gx, gy - 4, 0.9, this.t, i);
+      drawGhost(ctx, gx, gy - 4, 1.05, this.t, i);
       if (i % 2 === 0) {
-        PixelVFX.drawLoop(ctx, "critters/wisp", gx + Math.sin(this.t * 1.4 + i) * 18, gy - 46 - (i % 3) * 10, this.t + i * 0.37, { palette: "underworld", scale: 1.25, alpha: 0.7 });
+        PixelVFX.drawLoop(ctx, "critters/wisp", gx + Math.sin(this.t * 1.4 + i) * 18, gy - 56 - (i % 3) * 10, this.t + i * 0.37, { palette: "underworld", scale: 1.15, alpha: 0.7 });
       } else if (i === 3) {
-        PixelVFX.drawLoop(ctx, "critters/ghost", gx - 24, gy - 14, this.t + i * 0.5, { palette: "underworld", scale: 1.35, alpha: 0.55 });
+        PixelVFX.drawLoop(ctx, "spawn/soul-rise", gx - 20, gy - 8, this.t + i * 0.5, { palette: "underworld", scale: 1.25, alpha: 0.6 });
       }
     }
 
-    // the ghost currently speaking glows a little brighter
+    // Detailed human person shade when speaking (Elpenor, Anticleia, Agamemnon, Achilles)
     if (this.state === "meet") {
-      PixelVFX.drawLoop(ctx, "critters/wisp", W * 0.68, gy - 54, this.t, { palette: "underworld", scale: 1.6, alpha: 0.85 });
-      drawGhost(ctx, W * 0.68, gy - 4, 1.25, this.t, 99);
-      drawNameTag(ctx, W * 0.68, gy - 102, (GHOST_TAGS[this.met] || "SHADE") + "'S SHADE");
+      PixelVFX.drawLoop(ctx, "critters/wisp", W * 0.68, gy - 62, this.t, { palette: "underworld", scale: 1.5, alpha: 0.85 });
+      drawPersonShade(ctx, W * 0.68, gy - 4, 1.25, this.t, this.met);
+      drawNameTag(ctx, W * 0.68, gy - 108, (GHOST_TAGS[this.met] || "SHADE") + "'S SHADE");
     }
 
-    // tiresias appears at the end
+    // Tiresias appears at the end
     if (this.progress > 0.85 || this.state === "tiresias") {
       PixelVFX.drawLoop(ctx, "arcane/rune-circle", W * 0.72, gy + 4, this.t * 0.85, { palette: "underworld", scale: 1.7, alpha: 0.65 });
       drawTiresias(ctx, W * 0.72, gy - 2, 1.2, this.t);
       drawNameTag(ctx, W * 0.72, gy - 92, "TIRESIAS");
     }
 
-    // odysseus walks in place; world scrolls
-    drawOdysseus(ctx, W * 0.3, gy, 1.05, 1, this.t, true, this.state === "walk" && this.hold > 0, Gear.kit());
+    // Odysseus walks along the road; moving is true if holding stick, touching screen, or pressing keys
+    const stickMag = Math.hypot(this.engine.stickX || 0, this.engine.stickY || 0);
+    const isWalking = (this.state === "walk") && (this.hold > 0 || stickMag > 0.08 || Math.abs(this.engine.axisX()) > 0.08 || Math.abs(this.engine.axisY()) > 0.08 || this.engine.keyDown("ArrowRight", "d", "D", "ArrowUp", "w", "W", " "));
+    drawOdysseus(ctx, W * 0.3, gy, 1.05, 1, this.t, true, isWalking, Gear.kit());
     drawNameTag(ctx, W * 0.3, gy - 88, "ODYSSEUS");
 
     this.drawBursts(ctx);
