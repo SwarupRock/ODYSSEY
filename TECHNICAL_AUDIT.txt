@@ -21,6 +21,7 @@ M. TEAM INTEGRATION STAGE 3 — MERGE CHECKPOINT
   coherence, and Android runtime behaviour require dedicated later testing.
   Combat actions are present but stamina integration remains intentionally
   absent.
+
                     ODYSSEY — TECHNICAL AUDIT & ARCHITECTURE REFERENCE
 ================================================================================
 Document: TECHNICAL_AUDIT.txt
@@ -400,3 +401,106 @@ L. PROPOSED FILE-LEVEL IMPLEMENTATION PLAN
 - `js/scenefw.js`: Standardise pause/resume lifecycle hooks and cancellation handlers.
 - `android/app/src/main/assets/`: Keep synchronised with root after Phase 1 testing.
 ================================================================================
+N. TEAM INTEGRATION STAGE 4B — KEYBOARD INPUT RECONCILIATION
+--------------------------------------------------------------------------------
+- [VERIFIED] Approved keyboard mapping is now implemented in Chapters I, III,
+  V, and VI and the shared touch action labels/routes.
+- [VERIFIED] A/D remain movement-only in Chapters I and VI; C/K remain the
+  shared dodge route; K no longer dispatches spin.
+- [VERIFIED] Imported combat actions use F (parry/guard), R (distinct dash),
+  L (spear), I (spin), U (uppercut), B (bow), and Space/Enter (light slash
+  or contextual action). No heavy-attack handler exists, so H was not added.
+- [VERIFIED] Chapter V uses Space/Enter for rhythm strikes while W/S remain
+  steering input. Chapter III no longer enables the generic combat cluster;
+  its contextual Space/Enter interactions remain.
+- [VERIFIED] Shift no longer dispatches dash or dodge in Chapters I, III, or
+  VI. The movement-test-only Shift run and J dodge behaviour remain isolated.
+- [POTENTIAL] Browser and physical Android runtime verification after this
+  change remains outstanding. Root/Android source parity and JavaScript syntax
+  were checked.
+- [VERIFIED] `js/stamina.js` and its Android counterpart remain unchanged,
+  standalone, and unintegrated.
+
+--------------------------------------------------------------------------------
+O. STAGE 4B.1 — CAMPAIGN RUNNING INTEGRATION
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter I enables the existing MovementController run capability
+  during the Cyclops fight. Shift is passed as `shiftRun`; stealth movement
+  remains the pre-existing direct movement path and is unchanged.
+- [VERIFIED] Chapter VI enables the existing run capability during volley,
+  suitor-wave, and Antinous-duel movement phases. Shift is passed to the shared
+  controller, and the existing volley movement contribution uses the same
+  1.6 multiplier so the effective walking-to-running ratio remains exact.
+- [VERIFIED] Walking remains the default. Shift does not dispatch an action;
+  R remains dash and C/K remain shared dodge.
+- [VERIFIED] The MovementController dodge timings, invulnerability, cooldown,
+  jump physics, and hit-stop handling were not changed.
+- [POTENTIAL] Browser and physical Android runtime verification remain
+  outstanding. Syntax, diff, root/Android parity, and static speed-ratio
+  checks passed.
+- [VERIFIED] Chapter III and scenes without suitable MovementController
+  campaign integration remain unchanged. Stamina remains standalone and
+  unintegrated.
+--------------------------------------------------------------------------------
+P. TEAM INTEGRATION STAGE 4C — MOBILE TOUCH LIFECYCLE AND INPUT SAFETY
+--------------------------------------------------------------------------------
+- [VERIFIED] `js/stick.js` now has explicit interactivity gating. Dialogue,
+  screen/update-lock, scene-reset, blur, and document visibility-loss paths
+  prevent touch gameplay dispatch rather than relying on opacity.
+- [VERIFIED] Joystick axes and nub visuals, pressed action-button styling, and
+  active action pointers are cleared by `Stick.reset()`. Pointer ownership is
+  tracked per button, so joystick plus action-button multi-touch remains
+  independent and a cancelled pointer cannot trigger a later action.
+- [VERIFIED] Engine reset broadcasts the existing lifecycle reset to the touch
+  rig. Dialogue disables controls on open and restores them only when gameplay
+  is active. Chapter controls are not re-enabled until chapter intro/transition
+  work completes.
+- [VERIFIED] Chapter I and VI continue to own combat-cluster and dodge
+  visibility by combat phase. Chapter III continues to disable the generic
+  combat cluster. Bow visibility continues to use gear ownership plus scene
+  refresh calls. Chapter V rhythm input was not changed.
+- [VERIFIED] Root and Android copies of `js/stick.js`, `js/engine.js`,
+  `js/ui.js`, and `js/main.js` are byte-identical after Stage 4C changes.
+- [VERIFIED] JavaScript syntax, diff checks, a temporary touch lifecycle
+  harness, and browser lifecycle-gate checks passed.
+- [POTENTIAL] Full chapter traversal with physical touch gestures and native
+  Android WebView lifecycle testing remain outstanding.
+--------------------------------------------------------------------------------
+Q. STAGE 4D.1 — TECHNICAL REGRESSION FIXES
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter IV ghost-spawn, Tiresias, and Achilles reward VFX now use
+  the Engine's uppercase `W` dimension property. Their coordinate expressions
+  remain in the existing Canvas coordinate system; progression, dialogue,
+  rewards, and transitions were not changed.
+- [VERIFIED] Chapter V rhythm judgment and strait collision VFX now use the
+  Engine's uppercase `W` and `H` properties. The six-crew-loss result remains
+  explicitly fixed at `lost: 6`.
+- [VERIFIED] Bow availability is now scene-owned through `Stick.setBowAvailable`
+  and additionally requires equipped bow ownership, active gameplay, and
+  interactive input. Global keyboard B and the touch BOW button share the
+  `Stick.canUseBow()` gate.
+- [VERIFIED] Chapter I enables bow input only during the Cyclops fight and
+  clears it during cleanup, victory, and all non-fight states. Chapter VI
+  enables bow input for volley, suitor waves, and the Antinous duel, and clears
+  it during cleanup and victory. Other chapters never enable it.
+- [VERIFIED] Root and Android copies of all modified scene and shared files are
+  byte-identical. JavaScript syntax and diff checks passed.
+- [POTENTIAL] Full chapter browser traversal and physical Android WebView
+  validation remain outstanding because the mandatory updater gate blocks
+  gameplay launch and no native runtime was used.
+--------------------------------------------------------------------------------
+R. STAGE 4D.2 — CHAPTER III NARRATIVE CONTINUITY
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter III now keeps Eurylochus untransformed. His intro
+  dialogue explicitly states that he avoided the hall, escaped Circe's spell,
+  and returned to report what happened to Odysseus.
+- [VERIFIED] The three transformed crew members are now Polites, Elpenor, and
+  Perimedes. Elpenor is already an established crew member and his later
+  Underworld appearance remains coherent because the chapter can rescue him
+  before his subsequent death.
+- [VERIFIED] The existing three pig slots, three rescue counter, potion
+  recipes, invalid-recipe inventory restoration, contextual-only controls,
+  Circe trial, rewards, and chapter completion threshold were unchanged.
+- [VERIFIED] Root and Android Chapter III scene files are byte-identical.
+- [POTENTIAL] Full browser chapter traversal and physical Android WebView
+  testing remain outstanding.

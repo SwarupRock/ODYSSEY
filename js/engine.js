@@ -119,6 +119,7 @@ export class Engine {
     this.keys.clear();
     this.stickX = 0;
     this.stickY = 0;
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("odyssey-input-reset"));
   }
 
   /** hit-stop — freeze frames on heavy hits (seconds, ~0.09 typical) */

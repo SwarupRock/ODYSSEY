@@ -213,9 +213,9 @@ async function beginScene() {
   });
   engine.setScene(currentScene);
   Stick.setCombatMode(false);
-  Stick.refreshBow();
-  Stick.setInGame(true);
+  Stick.setBowAvailable(false);
   await currentScene.begin();
+  Stick.setInGame(true);
 }
 
 export async function startNext() {
@@ -366,7 +366,7 @@ function bindUI() {
     const sc = currentScene;
     if (!sc) return;
     if (k === "b") { // bow on a key too (B like the touch button)
-      if (sc.onActionKey) sc.onActionKey("bow");
+      if (Stick.canUseBow() && sc.onActionKey) sc.onActionKey("bow");
       return;
     }
     if (k === "c" || k === "k") {
@@ -421,6 +421,7 @@ try {
       });
       engine.setScene(currentScene);
       await currentScene.begin();
+      Stick.setInGame(true);
       console.log("ODYSSEY: MovementTestScene active. Press ESC or click Home to return.");
     } catch (err) {
       console.error("Failed to launch odysseyTestMovement:", err);

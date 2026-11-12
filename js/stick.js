@@ -11,6 +11,11 @@ import { Gear } from "./gear.js";
 
 export const Stick = {
   built: false,
+  interactive: false,
+  inGame: false,
+  bowAllowed: false,
+  stickId: null,
+  buttonPointers: new Map(),
 
   init(engine, getActionTarget) {
     this.engine = engine;
@@ -18,6 +23,11 @@ export const Stick = {
     if (this.built) return;
     this.built = true;
     this.build();
+    window.addEventListener("blur", () => this.reset());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") this.reset();
+    });
+    window.addEventListener("odyssey-input-reset", () => this.reset());
   },
 
   build() {
@@ -31,10 +41,10 @@ export const Stick = {
         <div class="tbtn-arc">
           <button id="btn-bow" class="tbtn tbtn-sm" title="Bow (B)">🏹<span>BOW</span></button>
           <button id="btn-dodge" class="tbtn tbtn-sm" title="Dodge (C / K)">↔<span>DODGE</span></button>
-          <button id="btn-dash" class="tbtn tbtn-sm tbtn-combat" title="Dash (Shift)">⚡<span>DASH</span></button>
+          <button id="btn-dash" class="tbtn tbtn-sm tbtn-combat" title="Dash (R)">⚡<span>DASH</span></button>
           <button id="btn-block" class="tbtn tbtn-sm tbtn-combat" title="Guard / Parry (F)">🛡<span>PARRY</span></button>
           <button id="btn-spear" class="tbtn tbtn-sm tbtn-combat" title="Spear Sweep (L)">🔱<span>SPEAR</span></button>
-          <button id="btn-spin" class="tbtn tbtn-sm tbtn-combat" title="Spin Slash (K)">🌀<span>SPIN</span></button>
+          <button id="btn-spin" class="tbtn tbtn-sm tbtn-combat" title="Spin Slash (I)">🌀<span>SPIN</span></button>
           <button id="btn-upper" class="tbtn tbtn-sm tbtn-combat" title="Uppercut (U)">⬆<span>UPPER</span></button>
         </div>
         <button id="btn-act" class="tbtn tbtn-main" title="Slash / Action (Space)">⚔<span>SLASH</span></button>
@@ -45,7 +55,6 @@ export const Stick = {
     const zone = document.getElementById("stick-zone");
     const base = document.getElementById("stick-base");
     const nub = document.getElementById("stick-nub");
-    let stickId = null;
     let zoneRect = null;            // cached; re-measured only on down/resize
     const remeasure = () => { zoneRect = zone.getBoundingClientRect(); };
     window.addEventListener("resize", remeasure);
@@ -58,26 +67,37 @@ export const Stick = {
 
     zone.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      if (stickId !== null) return;
-      stickId = e.pointerId;
+      if (!this.interactive || this.stickId !== null) return;
+      this.stickId = e.pointerId;
       remeasure(); // rect changes (orientation, layout) between touches
       try { zone.setPointerCapture(e.pointerId); } catch { /* synthetic/edge pointers */ }
       this.move(e);
     });
     zone.addEventListener("pointermove", (e) => {
-      if (e.pointerId !== stickId) return;
+      if (e.pointerId !== this.stickId || !this.interactive) return;
       this.move(e);
     });
     const release = (e) => {
-      if (e.pointerId !== stickId) return;
-      stickId = null;
+      if (e.pointerId !== this.stickId) return;
+      this.releaseStickPointer(e.pointerId);
+    };
+    zone.addEventListener("pointerup", release);
+    zone.addEventListener("pointercancel", release);
+    zone.addEventListener("pointerleave", (e) => {
+      if (e.pointerId === this.stickId) this.releaseStickPointer(e.pointerId);
+    });
+
+    this.releaseStickPointer = (pointerId = this.stickId) => {
+      if (pointerId === null || pointerId !== this.stickId) return;
+      try {
+        if (zone.hasPointerCapture?.(pointerId)) zone.releasePointerCapture(pointerId);
+      } catch { /* pointer may already be cancelled */ }
+      this.stickId = null;
       this.engine.stickX = 0;
       this.engine.stickY = 0;
       base.classList.remove("live");
       setNub(0, 0);
     };
-    zone.addEventListener("pointerup", release);
-    zone.addEventListener("pointercancel", release);
 
     this.move = (e) => {
       const r = zoneRect;
@@ -110,35 +130,43 @@ export const Stick = {
       if (!el) return;
       el.addEventListener("pointerdown", (e) => {
         e.preventDefault();
+        if (!this.interactive || this.buttonPointers.has(id)) return;
+        if (key === "bow" && !this.canUseBow()) return;
+        this.buttonPointers.set(id, { pointerId: e.pointerId, key, scene: this.getActionTarget() });
         el.classList.add("pressed");
         try { if (navigator.vibrate) navigator.vibrate(12); } catch {}
-        const sc = this.getActionTarget();
+        const sc = this.buttonPointers.get(id).scene;
         if (!sc) return;
         if (sc.onActionKey) sc.onActionKey(key);
         else if (key === " " && sc.handleTap) sc.handleTap();
       });
-      const up = () => {
-        if (!el.classList.contains("pressed")) return;
+      const up = (e) => {
+        const active = this.buttonPointers.get(id);
+        if (!active || (e.pointerId !== undefined && active.pointerId !== e.pointerId)) return;
+        this.buttonPointers.delete(id);
         el.classList.remove("pressed");
-        const sc = this.getActionTarget();
-        if (sc && sc.onKeyUp) sc.onKeyUp(key);
+        try {
+          if (el.hasPointerCapture?.(active.pointerId)) el.releasePointerCapture(active.pointerId);
+        } catch { /* pointer may already be cancelled */ }
+        if (active.scene?.onKeyUp) active.scene.onKeyUp(key);
       };
       el.addEventListener("pointerup", up);
       el.addEventListener("pointercancel", up);
       el.addEventListener("pointerleave", up);
+      el.addEventListener("lostpointercapture", up);
     };
     press("btn-act", " ");
     press("btn-bow", "bow");
     press("btn-dodge", "dodge");
     press("btn-upper", "u");
-    press("btn-spin", "k");
+    press("btn-spin", "i");
     press("btn-spear", "l");
     press("btn-block", "f");
-    press("btn-dash", "shift");
+    press("btn-dash", "r");
 
-    // show BOW only when the hero owns one; combat cluster off by default
+    // scene-owned bow capability and combat cluster are off by default
     this.setCombatMode(false);
-    this.refreshBow();
+    this.setBowAvailable(false);
   },
 
   /** toggle combat move buttons ("uppercut", "spin", "spear", "parry", "dash") */
@@ -147,11 +175,17 @@ export const Stick = {
     const act = document.getElementById("btn-act");
     if (box) box.classList.toggle("combat-on", !!on);
     if (act) act.innerHTML = on ? "⚔<span>SLASH</span>" : "ACT";
+    if (!on) {
+      for (const id of ["btn-dash", "btn-block", "btn-spear", "btn-spin", "btn-upper"]) {
+        this.releaseButton(id);
+      }
+    }
   },
 
   setDodgeVisible(on) {
     const b = document.getElementById("btn-dodge");
     if (b) b.classList.toggle("hidden", !on);
+    if (!on) this.releaseButton("btn-dodge");
   },
 
   /** brief cooldown pulse on an action button */
@@ -163,16 +197,65 @@ export const Stick = {
     el._cdTimer = setTimeout(() => el.classList.remove("cd"), ms);
   },
 
-  /** hide/show the bow button from gear state (called by main on chapter start) */
+  /** Scene-owned bow capability, additionally constrained by equipment. */
+  setBowAvailable(on) {
+    this.bowAllowed = !!on;
+    this.refreshBow();
+  },
+
+  canUseBow() {
+    return this.inGame && this.interactive && this.bowAllowed && !!Gear.kit().bow.power;
+  },
+
+  /** hide/show the bow button from scene capability and gear state */
   refreshBow() {
     const b = document.getElementById("btn-bow");
     if (!b) return;
-    b.classList.toggle("hidden", !Gear.kit().bow.power);
+    b.classList.toggle("hidden", !this.bowAllowed || !Gear.kit().bow.power);
   },
 
   /** screens want the pad out of the way; scenes want it back */
   setInGame(on) {
+    this.inGame = !!on;
+    if (!this.inGame) this.bowAllowed = false;
     const el = document.getElementById("touch-controls");
     if (el) el.classList.toggle("hidden", !on);
+    this.refreshBow();
+    this.setInteractive(this.inGame && !document.body.classList.contains("dlg-open"));
+  },
+
+  setInteractive(on) {
+    this.interactive = !!on;
+    const wrap = document.getElementById("touch-controls");
+    if (!wrap) return;
+    wrap.setAttribute("aria-disabled", String(!this.interactive));
+    wrap.inert = !this.interactive;
+    const controls = [document.getElementById("stick-zone"), ...wrap.querySelectorAll("button")];
+    for (const control of controls) {
+      if (control) control.style.pointerEvents = this.interactive ? "" : "none";
+    }
+    if (!this.interactive) this.reset();
+  },
+
+  releaseButton(id) {
+    const active = this.buttonPointers.get(id);
+    const el = document.getElementById(id);
+    if (!active) {
+      el?.classList.remove("pressed");
+      return;
+    }
+    this.buttonPointers.delete(id);
+    el?.classList.remove("pressed");
+    if (active.scene?.onKeyUp) active.scene.onKeyUp(active.key);
+  },
+
+  reset() {
+    this.releaseStickPointer?.();
+    for (const id of [...this.buttonPointers.keys()]) this.releaseButton(id);
+    for (const el of document.querySelectorAll("#touch-controls .pressed")) {
+      el.classList.remove("pressed");
+    }
+    this.engine.stickX = 0;
+    this.engine.stickY = 0;
   },
 };

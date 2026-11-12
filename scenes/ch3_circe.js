@@ -24,8 +24,8 @@ const RECIPES = {
   "0-3": "Salt-Bright Tonic — lifts heavy hearts",
 };
 
-// the swined crewmen, in pig order
-const PIG_NAMES = ["Polites", "Eurylochus", "Perimedes"];
+// the swined crewmen, in pig order; Eurylochus escaped and reported back
+const PIG_NAMES = ["Polites", "Elpenor", "Perimedes"];
 // the guardian beasts
 const BEAST_NAMES = ["wolf", "lion", "lynx"];
 
@@ -68,7 +68,7 @@ export class Ch3Scene extends ChapterScene {
 
     HUD.health(3);
     Mech.clear();
-    Stick.setCombatMode(true);
+    Stick.setCombatMode(false);
   }
 
   cleanup() {
@@ -79,7 +79,8 @@ export class Ch3Scene extends ChapterScene {
     await this.say(
       { who: "NARRATOR", text: "Aiaia. A soft green island that should have been safe — and was not." },
       { who: "NARRATOR", text: "Wolves and lions patrolled its glades, tame to their mistress, hungry for strangers. In her hall, men who were once your crew…" },
-      { who: "ODYSSEUS", text: "…grunted. They grunted, Eurylochus. Our men are pigs now. Tails and all." },
+      { who: "EURYLOCHUS", text: "I would not enter the hall. Circe changed the others into swine — I ran to warn you." },
+      { who: "ODYSSEUS", text: "You did right to return. We will bring Polites, Elpenor and Perimedes back." },
       { who: "NARRATOR", text: "Hermes, ever helpful, left a sprig of black-rooted moly at your feet: it wards off witchcraft." },
       { who: "ODYSSEUS", text: "Then I gather what the island offers and out-brew the witch. For my men." }
     );
@@ -221,30 +222,7 @@ export class Ch3Scene extends ChapterScene {
       if (k === " " || k === "enter" || k === "escape") this.closeBench();
       return;
     }
-    const W = this.engine.W, gy = this.groundY();
-    if (k === "u" || k === "k" || k === "l" || k === "f" || k === "shift") {
-      const map = { u: "uppercut", k: "spin", l: "spear", f: "block", shift: "dash" };
-      const move = map[k];
-      if (k === "shift") this.playerX = Math.max(0.05, Math.min(0.95, this.playerX + this.facing * 0.08));
-      Cinematic.performMove(move, this.playerX * W, gy, this.facing, { swordTier: Gear.kit().sword.id, engine: this.engine });
-      this.audio.sfx(k === "f" ? "block" : "sword");
-      if (move !== "block" && move !== "dash") {
-        const range = move === "spear" ? 0.14 : move === "spin" ? 0.13 : 0.10;
-        const beast = this.beasts.find((b) => b.alive && Math.abs(b.at - this.playerX) < range);
-        if (beast) {
-          beast.alive = false;
-          this.engine.shake(0.7);
-          const bx = beast.at * W;
-          Cinematic.impact(bx, gy - 26, PAL.bronzeBright, true);
-          Cinematic.damageNumber(bx, gy - 46, move === "uppercut" ? 32 : 24, move === "uppercut");
-          PixelVFX.spawn("spawn/poof", bx, gy, { palette: "rock", scale: 0.9 });
-          this.burst(bx, gy - 26, PAL.bronze, 50, 4);
-          this.note("Beast driven off!");
-        }
-      }
-      return;
-    }
-    if (k !== " " && k !== "enter" && k !== "j") return;
+    if (k !== " " && k !== "enter") return;
     // pig cure / beast strike take priority; otherwise SPACE at the hall opens the bench
     const nearPig = this.pigs.some((p) => !p.cured && Math.abs(p.at - this.playerX) < 0.05);
     const nearBeast = this.beasts.some((b) => b.alive && b.state === "strike" && Math.abs(b.at - this.playerX) < 0.08);

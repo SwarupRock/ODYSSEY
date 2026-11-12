@@ -30,7 +30,7 @@ export class Ch6Scene extends ChapterScene {
       baseSpeed: 0.3,
       minX: 0.08,
       maxX: 0.72,
-      capabilities: { run: false, jump: false, dodge: true },
+      capabilities: { run: true, jump: false, dodge: true },
       dodgeDistance: 0.13,
     });
     this.hp = 4;
@@ -77,7 +77,7 @@ export class Ch6Scene extends ChapterScene {
     this.phase = "volley";
     Stick.setCombatMode(true);
     Stick.setDodgeVisible(true);
-    Stick.refreshBow();
+    Stick.setBowAvailable(true);
     this.guardT = 0; this.parryT = 0; this.moveCd = 0;
     this.setupVolley();
     this.objective("Move with <span class=\"kbd\">A</span>/<span class=\"kbd\">D</span> (or hold sides) — <span class=\"kbd\">A</span>/<span class=\"kbd\">D</span> again to dodge the volleys");
@@ -104,7 +104,9 @@ export class Ch6Scene extends ChapterScene {
     const W = this.engine.W;
     this.updatePlayerMovement(dt, timing, 0.3, 0.08, 0.72);
     const kbd = this.engine.axisX();
-    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.3;
+    const shiftRun = this.engine.keyDown("Shift");
+    const speedMultiplier = shiftRun ? 1.6 : 1;
+    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.3 * speedMultiplier;
     this.playerX = Math.max(0.08, Math.min(0.72, this.playerX));
 
     this.volleySurvive -= dt;
@@ -180,6 +182,7 @@ export class Ch6Scene extends ChapterScene {
     this.controller.baseSpeed = speed;
     const axisX = Math.max(-1, Math.min(1, (this._holdDir || 0) + this.engine.axisX()));
     this.playerX = this.controller.updateHorizontal(this.playerX, axisX, dt, {
+      shiftRun: this.engine.keyDown("Shift"),
       hitStop: timing.hitStop,
     });
     if (Math.abs(axisX) > 0.05) this.facing = axisX > 0 ? 1 : -1;
@@ -324,6 +327,7 @@ export class Ch6Scene extends ChapterScene {
   async knockedDown() {
     if (this.state === "down") return;
     this.state = "down";
+    Stick.setBowAvailable(false);
     Mech.hide();
     await this.say(
       { who: "NARRATOR", text: "A wine cup caught your temple. You went down on one knee in the hall you built — and got up anyway." },
@@ -333,6 +337,7 @@ export class Ch6Scene extends ChapterScene {
     HUD.health(2);
     if (this.phase === "volley") this.volley = [];
     this.state = "";
+    Stick.setBowAvailable(true);
   }
 
   /* ---------------- ACT 3: duel ---------------- */
@@ -469,6 +474,7 @@ export class Ch6Scene extends ChapterScene {
   cleanup() {
     Stick.setCombatMode(false);
     Stick.setDodgeVisible(false);
+    Stick.setBowAvailable(false);
   }
 
   heroMove(kind) {
@@ -481,6 +487,15 @@ export class Ch6Scene extends ChapterScene {
       Stick.cooldown("btn-block", 500);
       Cinematic.performMove("block", px, gy, this.facing, { swordTier: kit.sword.id, engine: this.engine });
       this.audio.sfx("block");
+      return;
+    }
+
+    if (kind === "dash") {
+      if (this.moveCd > 0) return;
+      this.moveCd = 0.55;
+      Stick.cooldown("btn-dash", 550);
+      Cinematic.performMove("dash", px, gy, this.facing, { swordTier: kit.sword.id, engine: this.engine });
+      this.playerX = Math.max(0.08, Math.min(0.72, this.playerX + this.facing * 0.08));
       return;
     }
 
@@ -519,15 +534,15 @@ export class Ch6Scene extends ChapterScene {
   }
 
   onActionKey(k) {
-    if (k === "a" || k === "d") this.dodge(k === "a" ? -1 : 1);
-    else if (k === "dodge") this.dodge(this.engine.axisX());
-    else if (k === "shift") this.dodge(this.facing || 1);
+    if (k === "dodge") this.dodge(this.engine.axisX());
+    else if (k === "r") this.heroMove("dash");
     else if (k === "u") this.heroMove("uppercut");
-    else if (k === "k") this.heroMove("spin");
+    else if (k === "i") this.heroMove("spin");
     else if (k === "l") this.heroMove("spear");
     else if (k === "f") this.heroMove("block");
-    else if (k === " " || k === "enter" || k === "j") this.heroMove("slash");
+    else if (k === " " || k === "enter") this.heroMove("slash");
     else if (k === "bow") {
+      if (!Stick.canUseBow()) return;
       this.shootBow({ x: this.playerX * this.engine.W + this.aimDir * 22, y: this.groundY() - 110, speed: 900 });
     }
   }
@@ -537,6 +552,7 @@ export class Ch6Scene extends ChapterScene {
   async victory() {
     this.phase = "won";
     Stick.setCombatMode(false);
+    Stick.setBowAvailable(false);
     Mech.hide();
     this.objective(null);
     this.audio.sfx("flare");

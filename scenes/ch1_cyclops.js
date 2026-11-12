@@ -27,7 +27,7 @@ export class Ch1Scene extends ChapterScene {
       baseSpeed: 300,
       minX: this.engine.W * 0.06,
       maxX: this.engine.W * 0.6,
-      capabilities: { run: false, jump: false, dodge: true },
+      capabilities: { run: true, jump: false, dodge: true },
       dodgeDistance: this.engine.W * 0.2,
     });
     this.playerHP = 3;
@@ -131,7 +131,7 @@ export class Ch1Scene extends ChapterScene {
     HUD.health(5);
     Stick.setCombatMode(true);
     Stick.setDodgeVisible(true);
-    Stick.refreshBow();
+    Stick.setBowAvailable(true);
     const W = this.engine.W;
     this.fight = {
       hp: 210,
@@ -152,6 +152,7 @@ export class Ch1Scene extends ChapterScene {
       spinCd: 0,
       upperCd: 0,
       spearCd: 0,
+      dashCd: 0,
       combo: 0,
       comboT: 0,
       lastMove: null,
@@ -176,6 +177,7 @@ export class Ch1Scene extends ChapterScene {
   cleanup() {
     Stick.setCombatMode(false);
     Stick.setDodgeVisible(false);
+    Stick.setBowAvailable(false);
   }
 
   updateBossUI() {
@@ -304,6 +306,7 @@ export class Ch1Scene extends ChapterScene {
     if (f.spinCd > 0) f.spinCd = Math.max(0, f.spinCd - dt);
     if (f.upperCd > 0) f.upperCd = Math.max(0, f.upperCd - dt);
     if (f.spearCd > 0) f.spearCd = Math.max(0, f.spearCd - dt);
+    if (f.dashCd > 0) f.dashCd = Math.max(0, f.dashCd - dt);
     if (f.comboT > 0) {
       f.comboT -= dt;
       if (f.comboT <= 0) f.combo = 0;
@@ -322,6 +325,7 @@ export class Ch1Scene extends ChapterScene {
     this.controller.baseSpeed = f.guardT > 0 ? 160 : 320;
     this.controller.dodgeDistance = W * 0.2;
     this.playerX = this.controller.updateHorizontal(this.playerX, moveAxis, dt, {
+      shiftRun: eng.keyDown("Shift"),
       hitStop: timing.hitStop,
     });
 
@@ -485,6 +489,7 @@ export class Ch1Scene extends ChapterScene {
     const f = this.fight;
     f.phase = "staggered"; f.timer = 99;
     this.state = "down";
+    Stick.setBowAvailable(false);
     await this.say(
       { who: "NARRATOR", text: "Darkness took you at the cave's edge — but not the end. The crew dragged you back into the shadows." },
       { who: "ODYSSEUS", text: "Again, then. The stake is still sharp." }
@@ -495,6 +500,7 @@ export class Ch1Scene extends ChapterScene {
     f.bossX = f.baseBossX;
     f.phase = "idle"; f.timer = 1.4;
     this.state = "fight";
+    Stick.setBowAvailable(true);
   }
 
   /* ---------------- input ---------------- */
@@ -541,6 +547,16 @@ export class Ch1Scene extends ChapterScene {
     const kit = Gear.kit();
     const swordTier = kit.sword.id;
     const dist = Math.abs(f.bossX - this.playerX);
+
+    if (kind === "dash") {
+      if (f.dashCd > 0) return;
+      f.dashCd = 0.55;
+      Stick.cooldown("btn-dash", 550);
+      Cinematic.performMove("dash", this.playerX, this.groundY(), this.facing, { engine: this.engine });
+      this.playerX = clamp(this.playerX + this.facing * 0.08 * this.engine.W, this.engine.W * 0.06, f.bossX - 42);
+      this.audio.sfx("footstep");
+      return;
+    }
 
     if (kind === "block") {
       if (f.guardT > 0.35) return;
@@ -665,15 +681,15 @@ export class Ch1Scene extends ChapterScene {
 
   onActionKey(k) {
     if (this.state !== "fight") return;
-    if (k === "a" || k === "d") this.dodge(k === "a" ? -1 : 1);
-    else if (k === "dodge") this.dodge(this.engine.axisX());
-    else if (k === "shift") this.dodge(this.facing || 1);
+    if (k === "dodge") this.dodge(this.engine.axisX());
+    else if (k === "r") this.heroMove("dash");
     else if (k === "u") this.heroMove("uppercut");
-    else if (k === "k") this.heroMove("spin");
+    else if (k === "i") this.heroMove("spin");
     else if (k === "l") this.heroMove("spear");
     else if (k === "f") this.heroMove("block");
-    else if (k === " " || k === "enter" || k === "j") this.heroMove("slash");
+    else if (k === " " || k === "enter") this.heroMove("slash");
     else if (k === "bow") {
+      if (!Stick.canUseBow()) return;
       this.shootBow({ x: this.playerX + this.aimDir * 22, y: this.groundY() - 104, speed: 860 });
     }
   }
@@ -719,6 +735,7 @@ export class Ch1Scene extends ChapterScene {
     this.state = "won";
     this.fight.phase = "done";
     Stick.setCombatMode(false);
+    Stick.setBowAvailable(false);
     Mech.hide();
     this.audio.sfx("flare");
     setTimeout(() => this.audio.sfx("roar"), 400);

@@ -48,7 +48,10 @@ export const Dialogue = {
     document.body.classList.add("dlg-open"); // suppress touch controls
     // Reset joystick or button holds so moving when dialogue opens stops immediately
     try {
-      import("./stick.js").then(({ Stick }) => Stick.reset && Stick.reset()).catch(() => {});
+      import("./stick.js").then(({ Stick }) => {
+        Stick.setInteractive(false);
+        Stick.reset();
+      }).catch(() => {});
     } catch {}
     this._startLine();
   },
@@ -111,6 +114,9 @@ export const Dialogue = {
     Voice.stop();
     $("dialogue").classList.add("hidden");
     document.body.classList.remove("dlg-open");
+    import("./stick.js").then(({ Stick }) => {
+      if (Stick.inGame) Stick.setInteractive(true);
+    }).catch(() => {});
   },
 };
 

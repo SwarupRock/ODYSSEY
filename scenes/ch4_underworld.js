@@ -77,7 +77,7 @@ export class Ch4Scene extends ChapterScene {
 
   async ghostMeet(i) {
     const line = GHOST_LINES[i];
-    const W = this.engine.w, gy = this.groundY();
+    const W = this.engine.W, gy = this.groundY();
     PixelVFX.spawn("spawn/soul-rise", W * 0.68, gy - 6, { palette: "underworld", scale: 1.8 });
     await this.say(
       { who: "NARRATOR", text: "A shade broke from the flock of the dead and drank deep of the black blood. Its eyes found yours — eyes that remembered." },
@@ -95,7 +95,7 @@ export class Ch4Scene extends ChapterScene {
 
   async tiresiasScene() {
     this.audio.sfx("gate");
-    const W = this.engine.w, gy = this.groundY();
+    const W = this.engine.W, gy = this.groundY();
     PixelVFX.spawn("arcane/magic-circle-cast", W * 0.72, gy - 4, { palette: "underworld", scale: 2.0 });
     await this.say(
       { who: "NARRATOR", text: "Last of all came the blind prophet, staff in hand, knowing the way without eyes." },
@@ -143,7 +143,7 @@ export class Ch4Scene extends ChapterScene {
     if (Gear.award("armor", 3)) {
       this.showGearChip();
       this.audio.sfx("reveal");
-      PixelVFX.spawn("pickups/loot-beam", this.engine.w * 0.28, this.groundY() - 6, { palette: "apollo", scale: 1.9 });
+      PixelVFX.spawn("pickups/loot-beam", this.engine.W * 0.28, this.groundY() - 6, { palette: "apollo", scale: 1.9 });
       await this.say(
         { who: "ACHILLES", text: "I would rather be a living thrall than a crowned king of the dead. Take my armor — it is wasted on a ghost." },
         { who: "NARRATOR", text: "The Armor of Achilles: no cup, no club, no sword bites deep through it." }

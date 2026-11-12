@@ -1525,3 +1525,427 @@ Next recommended action:
 Run post-merge static checks, then perform feature reconciliation and targeted
 browser/Android integration tests before producing fresh APK builds.
 --------------------------------------------------
+
+ENTRY 018 — STAGE 4B KEYBOARD INPUT RECONCILIATION
+
+Date: 2026-11-12
+Status: COMPLETED — RUNTIME VERIFICATION PENDING
+Development phase: Team Integration — Stage 4B
+
+Objective:
+Implement the approved conflict-free keyboard mapping after the Stage 4A
+read-only audit while preserving shared dodge, imported combat actions, and
+chapter-specific interaction behaviour.
+
+Work completed:
+- Kept A/D movement-only in Chapters I and VI.
+- Kept C/K routed to the shared dodge action; K no longer maps to spin.
+- Remapped imported actions to F (parry/guard), R (dash), L (spear), I
+  (spin), U (uppercut), and B (bow).
+- Preserved Space/Enter for light slash and contextual actions.
+- Did not add H because no real heavy-attack gameplay handler exists.
+- Restricted Chapter III to its contextual Space/Enter interactions and no
+  longer enabled the generic combat button cluster.
+- Separated Chapter V rhythm strikes onto Space/Enter while retaining W/S
+  steering.
+- Preserved movement-test Shift running and J dodge behaviour without exposing
+  those bindings to campaign combat.
+- Updated root and Android packaged touch mappings together.
+
+Files modified:
+- js/stick.js
+- scenes/ch1_cyclops.js
+- scenes/ch3_circe.js
+- scenes/ch5_straits.js
+- scenes/ch6_ithaca.js
+- android/app/src/main/assets/js/stick.js
+- android/app/src/main/assets/scenes/ch1_cyclops.js
+- android/app/src/main/assets/scenes/ch3_circe.js
+- android/app/src/main/assets/scenes/ch5_straits.js
+- android/app/src/main/assets/scenes/ch6_ithaca.js
+- TECHNICAL_AUDIT.txt
+- DEVELOPMENT_LOG.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Dash is exposed through the existing cinematic dash action on R and is
+  separate from the shared MovementController dodge route.
+- No placeholder heavy attack was created.
+- Stamina remains standalone and unintegrated.
+- No OTA, PixelFX, VR, Android networking, manifest, version-script, or APK
+  files were modified.
+
+Testing performed:
+- JavaScript syntax checks on all modified root and Android scene/control
+  modules using `node --check`.
+- `git diff --check`.
+- Root/Android byte-parity checks for all modified shared modules.
+- Static mapping assertions and conflict searches for A/D, Shift, K, J, and W
+  routes.
+
+Test results:
+- Syntax checks passed.
+- Diff check passed.
+- Root/Android parity passed after correcting the Chapter I ground anchor.
+- No browser automation or physical Android runtime test was performed.
+
+Outstanding issues:
+- Runtime verification of every keyboard action, dialogue/menu suppression,
+  focus loss, Chapter I/VI dodge behaviour, Chapter V rhythm timing, and
+  Chapter III isolation remains required.
+- APKs were not built.
+
+Platform validation:
+Source parity verified for Web and Android packaged assets; browser and native
+Android runtime not tested.
+
+Next recommended action:
+Perform approved browser and Android control verification in Stage 4C.
+Do not integrate stamina or alter OTA/PixelFX/VR systems.
+--------------------------------------------------
+
+ENTRY 019 — STAGE 4B.1 CAMPAIGN RUNNING INTEGRATION
+
+Date: 2026-11-12
+Status: COMPLETED — RUNTIME VERIFICATION PENDING
+Development phase: Team Integration — Stage 4B.1
+
+Objective:
+Enable the approved Shift-to-run behaviour in campaign phases already using
+MovementController without replacing chapter-specific movement systems or
+changing dodge, combat, or encounter timing.
+
+Work completed:
+- Enabled `capabilities.run` in Chapter I and passed the physical Shift state
+  into the controller during the Cyclops fight.
+- Enabled `capabilities.run` in Chapter VI and passed Shift into volley,
+  suitor-wave, and Antinous-duel controller movement.
+- Preserved Chapter I stealth's direct movement implementation unchanged.
+- Preserved Chapter VI's existing volley movement contribution while applying
+  the same 1.6 multiplier, retaining an exact 1.6 walking-to-running ratio.
+- Left Chapter III and other scenes without suitable campaign controller
+  integration unchanged.
+- Kept R as distinct dash and C/K as shared dodge; Shift dispatches no action.
+
+Files modified:
+- scenes/ch1_cyclops.js
+- scenes/ch6_ithaca.js
+- android/app/src/main/assets/scenes/ch1_cyclops.js
+- android/app/src/main/assets/scenes/ch6_ithaca.js
+- TECHNICAL_AUDIT.txt
+- DEVELOPMENT_LOG.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Campaign running reuses MovementController's existing 1.6 multiplier and
+  `shiftRun` input flag.
+- Chapter I stealth was not converted to the controller because it uses its
+  own noise-sensitive direct movement and is not an appropriate shared
+  movement phase.
+- Chapter VI volley's pre-existing additional movement was scaled with Shift
+  rather than removed, preserving its walking baseline and encounter feel.
+- Dodge timing, invulnerability, cooldown, jump physics, and hit-stop behaviour
+  were not changed. Stamina remains standalone and unintegrated.
+
+Testing performed:
+- `node --check` on modified root and Android chapter files.
+- `git diff --check`.
+- Root/Android byte-parity checks for both modified chapter files.
+- Stamina root/Android parity check.
+- Static route checks confirming Shift is passed only as run state and R/C/K
+  action routes remain separate.
+- Arithmetic verification of the exact 1.6 effective Chapter VI volley ratio.
+
+Test results:
+- Syntax checks passed.
+- Diff check passed.
+- Root/Android parity passed.
+- Effective walking-to-running ratio passed at exactly 1.6.
+- Browser automation and physical Android runtime testing were not performed.
+
+Outstanding issues:
+- Runtime verification of campaign walking/running transitions, dialogue and
+  transition suppression, and independent dodge/dash behaviour remains pending.
+- Chapter I stealth remains walk-only by design because it does not use the
+  shared movement controller.
+- APKs were not built.
+
+Platform validation:
+Source parity verified for Web and Android packaged assets; browser and native
+Android runtime not tested.
+
+Next recommended action:
+Perform browser and Android campaign movement verification in Stage 4C.
+Do not integrate stamina or alter OTA, PixelFX, or VR systems.
+--------------------------------------------------
+
+ENTRY 020 — STAGE 4C MOBILE TOUCH LIFECYCLE AND INPUT SAFETY
+
+Date: 2026-11-12
+Status: COMPLETED — NATIVE ANDROID RUNTIME PENDING
+Development phase: Team Integration — Stage 4C
+
+Objective:
+Harden mobile touch controls against dialogue, update locks, focus loss,
+pointer cancellation, scene replacement, transitions, and multi-touch
+interruption without changing keyboard mappings, movement physics, combat
+mechanics, stamina, or chapter progression.
+
+Work completed:
+- Added explicit `Stick` interactivity gating. Disabled controls now reject
+  pointer dispatch and apply non-interactive pointer state instead of relying
+  on opacity.
+- Added `Stick.reset()` cleanup for joystick axes, nub position, live styling,
+  pressed buttons, and active action pointers.
+- Added per-button pointer ownership so joystick and action buttons can be used
+  simultaneously and releasing one pointer cannot release another action.
+- Added pointercancel, pointerleave, window blur, document visibility-loss, and
+  engine scene-reset cleanup paths.
+- Dialogue opening disables touch gameplay controls; dialogue completion restores
+  them only when gameplay is active.
+- Touch controls remain disabled through screen/update-lock states and chapter
+  intro/transition work until the scene is ready.
+- Preserved explicit Chapter I and Chapter VI combat visibility, Chapter III's
+  disabled generic combat cluster, bow ownership refresh, and Chapter V rhythm
+  input routing.
+
+Files modified:
+- js/stick.js
+- js/engine.js
+- js/ui.js
+- js/main.js
+- android/app/src/main/assets/js/stick.js
+- android/app/src/main/assets/js/engine.js
+- android/app/src/main/assets/js/ui.js
+- android/app/src/main/assets/js/main.js
+- TECHNICAL_AUDIT.txt
+- DEVELOPMENT_LOG.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Lifecycle cleanup is coordinated through the existing Engine reset and
+  ChapterScene lifecycle rather than adding duplicate scene listeners.
+- Active action pointers retain their original scene reference for release
+  cleanup, preventing a cancelled pointer from dispatching into a replacement
+  scene.
+- Combat button visibility remains scene-owned: Chapter I and VI enable the
+  cluster only in their combat phases, while Chapter III never enables it.
+- Stamina remains standalone and unintegrated. OTA, PixelFX, VR, Android
+  networking, movement physics, dodge timings, and keyboard mappings were not
+  changed.
+
+Testing performed:
+- `node --check` on all modified root JavaScript files.
+- `git diff --check`.
+- Temporary Node touch lifecycle harness covering multi-touch, edge-trigger
+  non-repeat, pointer cancellation, blur cleanup, and disabled dispatch.
+- Browser preview loaded through `http://localhost:8391/index.html`.
+- Browser DOM verification confirmed update-lock state disables touch controls,
+  and direct `Stick` gating produced `aria-disabled="true"` and
+  `pointer-events: none`; a blocked pointerdown did not set pressed state.
+- Root/Android byte parity checks for all four modified shared JavaScript
+  files.
+
+Test results:
+- Syntax checks passed.
+- Diff check passed.
+- Touch lifecycle harness passed.
+- Browser lifecycle-gate checks passed.
+- Root/Android parity passed.
+- Physical Android runtime testing was not performed.
+
+Outstanding issues:
+- Full interactive browser chapter traversal with physical pointer gestures
+  remains pending.
+- Native Android WebView lifecycle and multi-touch testing remains pending.
+- Existing baseline differences in `js/art.js` and `sw.js` were not changed.
+
+Platform validation:
+Browser: preview and lifecycle-gate checks performed.
+Android: packaged source parity verified; native runtime not tested.
+
+Next recommended action:
+Review Stage 4C, then separately approve any browser/Android interactive
+coverage gaps. Do not begin stamina integration or Phase 3.2.
+--------------------------------------------------
+
+ENTRY 021 — STAGE 4D.1 TECHNICAL REGRESSION FIXES
+
+Date: 2026-11-12
+Status: COMPLETED — RUNTIME VERIFICATION PENDING
+Development phase: Team Integration — Stage 4D.1
+
+Objective:
+Fix the three confirmed medium-severity defects from the Stage 4D regression
+audit without changing movement, dodge, stamina, combat timing, keyboard
+mappings, chapter progression, or narrative content.
+
+Work completed:
+- Corrected Chapter IV ghost-spawn, Tiresias, and Achilles reward visual
+  coordinates from invalid lowercase engine.w references to Engine.W.
+- Corrected Chapter V rhythm judgment and strait collision visual coordinates
+  to use Engine.W and Engine.H.
+- Added scene-owned bow capability to Stick. Bow visibility now requires both
+  an explicitly enabled scene capability and equipped bow ownership.
+- Gated touch and keyboard bow dispatch through the same active gameplay,
+  interactive, scene-capability, and ownership predicate.
+- Enabled bow only for Chapter I Cyclops combat and Chapter VI volley, suitor
+  waves, and Antinous duel. Cleared bow availability during cleanup, victory,
+  scene replacement, disabled gameplay, and unsupported phases.
+- Preserved Chapter V rhythm/steering and fixed six-crew-loss progression.
+
+Files modified:
+- js/stick.js
+- js/main.js
+- scenes/ch1_cyclops.js
+- scenes/ch4_underworld.js
+- scenes/ch5_straits.js
+- scenes/ch6_ithaca.js
+- android/app/src/main/assets/js/stick.js
+- android/app/src/main/assets/js/main.js
+- android/app/src/main/assets/scenes/ch1_cyclops.js
+- android/app/src/main/assets/scenes/ch4_underworld.js
+- android/app/src/main/assets/scenes/ch5_straits.js
+- android/app/src/main/assets/scenes/ch6_ithaca.js
+- TECHNICAL_AUDIT.txt
+- DEVELOPMENT_LOG.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Used a scene-owned Stick capability rather than chapter-name checks or a
+  generic combat-mode implication. This keeps bow permission explicit and
+  avoids circular dependencies.
+- Kept Chapter I and VI scene handlers intact, adding only the shared
+  availability guard. No bow handler was added to unsupported scenes.
+- Did not modify Eurylochus content, stamina.js, movement physics, dodge
+  timing, OTA, PixelFX, VR, Android networking, or save data.
+
+Testing performed:
+- `node --check` passed for all modified root and Android JavaScript files.
+- `git diff --check` passed.
+- Search confirmed no lowercase `engine.w` or `engine.h` remains in Chapters
+  IV or V.
+- Isolated coordinate assertions confirmed corrected Canvas dimensions produce
+  finite numeric VFX coordinates for representative W/H values.
+- Source-level bow matrix checks confirmed ownership/capability/interactivity
+  gating and unsupported-scene rejection paths.
+- Root/Android byte comparisons passed for every modified shared and scene file.
+- Focused diff inspection completed.
+- Browser preview was inspected but the mandatory updater lock prevented
+  chapter runtime testing; no updater bypass was used.
+
+Test results:
+All static, syntax, diff, coordinate, bow-gating, and parity checks passed.
+Full browser chapter traversal and physical Android runtime testing remain
+unperformed.
+
+Outstanding issues:
+- Browser runtime remains blocked by the mandatory updater policy.
+- Physical Android WebView testing remains pending.
+- Stage 4D.2 Eurylochus narrative correction has not started.
+- Stamina remains standalone and unintegrated.
+
+Platform validation:
+Browser: preview/update-lock inspection only; gameplay runtime not tested.
+Android: packaged source parity verified; native runtime not tested.
+
+Next recommended action:
+Review Stage 4D.1 fixes and approve or reject Stage 4D.2 separately.
+Do not begin stamina integration or unrelated gameplay changes.
+--------------------------------------------------
+
+ENTRY 022 — STAGE 4D.2 CHAPTER III NARRATIVE CONTINUITY
+
+Date: 2026-11-12
+Status: COMPLETED — RUNTIME VERIFICATION PENDING
+Development phase: Team Integration — Stage 4D.2
+
+Objective:
+Correct Chapter III's Circe transformation sequence so Eurylochus remains
+untransformed and retains his Homeric reporting role, while preserving exactly
+three transformed crew members and the existing rescue gameplay.
+
+Work completed:
+- Replaced Eurylochus in PIG_NAMES with Elpenor.
+- Preserved exactly three transformed crew members: Polites, Elpenor, and
+  Perimedes, using the existing three pig slots and three rescue counter.
+- Added Eurylochus dialogue establishing that he avoided the transformation,
+  returned safely, and reported Circe's actions to Odysseus.
+- Updated the intro response to identify the three actual rescue targets.
+- Preserved ingredient gathering, recipes, invalid-recipe inventory
+  restoration, potion consumption, beast states, contextual Space/Enter
+  interactions, Circe's trial, equipment rewards, and completion threshold.
+
+Files modified:
+- scenes/ch3_circe.js
+- android/app/src/main/assets/scenes/ch3_circe.js
+- TECHNICAL_AUDIT.txt
+- DEVELOPMENT_LOG.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Selected Elpenor as the replacement because he is already an established
+  crew member and his Chapter IV shade appearance remains coherent after a
+  later death between chapters.
+- Did not modify the GDD despite its older proposed roster wording; this
+  stage implements the separately approved continuity correction.
+- Did not alter any other chapter, shared gameplay system, save behavior,
+  stamina, controls, OTA, PixelFX, VR, or Android networking.
+
+Testing performed:
+- `node --check` passed for root and Android Chapter III scene files.
+- `git diff --check` passed.
+- Source-level assertions confirmed PIG_NAMES contains exactly three unique
+  names, excludes Eurylochus, includes Elpenor, and remains indexed by the
+  existing three pig/rescue slots.
+- Source-level assertions confirmed rescue completion remains gated by
+  `pigsCured >= 3`, uses the existing potion path, and retains the existing
+  recipe definitions and invalid-recipe restoration.
+- The first local assertion pass used wording not present verbatim in the
+  dialogue check; the assertion was corrected to match the saved reporting
+  line, then passed without changing production code.
+- Root/Android byte comparison passed for the modified Chapter III scene.
+- Focused diff inspection completed.
+
+Test results:
+All syntax, parity, and focused narrative/gameplay-preservation checks passed.
+Full interactive browser and physical Android testing remain unperformed.
+
+Outstanding issues:
+- Browser gameplay remains blocked by the mandatory updater lock.
+- Physical Android WebView runtime testing remains pending.
+- No additional gameplay or narrative corrections were started.
+
+Platform validation:
+Browser: source-level validation only; chapter runtime not tested.
+Android: packaged source parity verified; native runtime not tested.
+
+Next recommended action:
+Review Stage 4D.2 and separately approve any later narrative or gameplay work.
+Do not begin stamina integration or unrelated chapter changes.
+--------------------------------------------------
