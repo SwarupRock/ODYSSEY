@@ -521,8 +521,10 @@ S. TEAM INTEGRATION STAGE 4E — CHAPTER III RECONCILIATION AND MAIN MERGE
   Polites, Elpenor, and Perimedes occupy the three rescue slots; completion is
   still gated by three successful rescues.
 - [VERIFIED] Rescue prioritizes a carried Clarifying Draught and otherwise uses
-  one Moly Elixir charge. Failed rescues do not consume a potion or increment
-  progress. Repeated successful rescue actions cannot increment a cured slot.
+  one Moly Elixir charge; when neither applies, an already carried recipe
+  potion retains the integration branch's existing rescue behavior. Failed
+  rescues do not consume a potion or increment progress. Repeated successful
+  rescue actions cannot increment a cured slot.
 - [VERIFIED] Chapter III leaves the generic combat cluster disabled and hides
   dodge during initialization and cleanup. C/K dodge dispatch and other
   unsupported generic actions have no Chapter III combat effect. Space/Enter

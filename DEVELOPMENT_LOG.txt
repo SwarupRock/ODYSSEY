@@ -1967,6 +1967,8 @@ Work completed:
   a5b8de153decca73a6b8a9de6a4f5bb698fd6cc4.
 - Created normal merge commit 4ba1e8cb1595544bfd6e9f2574b2dd808f618d8b
   on integration/team-merge-2026-11-12. The merge has both expected parents.
+- Added follow-up source commit 8d1eb6e to retain the integration branch's
+  existing rescue behavior for its other successfully brewed recipe potions.
 - Manually reconciled root and Android Chapter III scenes, retaining the main
   palace, Moly blossoms and essence, Cauldron, beast health, contextual sword
   damage, compatible visuals, dialogue, rewards, and progression alongside
@@ -1974,9 +1976,10 @@ Work completed:
   potion inventory, and the scripted Circe finale.
 - Kept Eurylochus as the untransformed reporter. The three transformed/rescued
   crew remain Polites, Elpenor, and Perimedes; completion remains at three.
-- Clarifying Draught takes rescue priority; Moly Elixir is the fallback. Failed
-  rescue consumes nothing, and a successful rescue consumes one potion and
-  increments the counter once.
+- Rescue selection prioritizes Clarifying Draught, then Moly Elixir, then an
+  already carried non-Clarifying recipe potion to preserve existing behavior.
+  Failed rescue consumes nothing; successful rescue consumes only the selected
+  potion and increments the counter once.
 - Restricted Chapter III actions to contextual Space/Enter and ACT. Generic
   combat stays disabled; dodge is hidden at initialization and cleanup; only
   the contextual basic slash can damage beasts. Fixed the W/gy handler issue.
@@ -2025,6 +2028,9 @@ Testing performed:
   successful ingredient consumption, invalid-recipe restoration, beast HP,
   input isolation, hidden dodge, and absence of W/gy from the action handler.
   — passed.
+- Follow-up isolated rescue checks confirmed Clarifying priority, Moly use when
+  Clarifying is absent, preservation of another carried recipe potion when no
+  Moly charge is available, and no consumption on failed rescue — passed.
 - No repository package/test scripts or test files were discovered.
 - Browser gameplay and physical Android runtime tests were not performed.
 
