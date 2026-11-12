@@ -1,9 +1,9 @@
 {
-  "version": "1.2.4",
-  "build": 6,
+  "version": "1.2.5",
+  "build": 7,
   "mandatory": true,
-  "hash": "ac1869b88d58",
-  "notes": "Ithaca bidirectional combat movement & retreats, dialogue ability click fix, enhanced Greek pottery loading experience, persistent save data",
+  "hash": "2ab5e350d345",
+  "notes": "Replace Begin Voyage with View History Video after voyage start, continue where left off after cinematic, fix button click",
   "baseUrl": "https://raw.githubusercontent.com/SwarupRock/ODYSSEY/main/",
   "files": [
     "audio/voices/091e5ea2.mp3",

@@ -98,8 +98,13 @@ export function returnHome() {
   showScreen("title");
 }
 
+function hasVoyageStarted() {
+  const d = Save.data || {};
+  return (d.completed && d.completed.length > 0) || (d.unlocked && d.unlocked > 1) || (d.lastChapter && d.lastChapter > 0) || !!d.introSeen;
+}
+
 function renderTitle() {
-  const has = (Save.data.completed && Save.data.completed.length > 0) || (Save.data.unlocked && Save.data.unlocked > 1) || (Save.data.lastChapter && Save.data.lastChapter > 0);
+  const has = hasVoyageStarted();
   const targetChapter = Math.min(Save.data.lastChapter !== undefined ? Save.data.lastChapter : (Save.data.unlocked || 1), 6);
   const contBtn = $("btn-continue");
   const newBtn = $("btn-new-game");
@@ -108,13 +113,35 @@ function renderTitle() {
     contBtn.textContent = "Continue — " + chapterName(targetChapter);
     if (has) {
       contBtn.classList.add("btn-hero");
-      if (newBtn) newBtn.classList.remove("btn-hero");
     } else {
       contBtn.classList.remove("btn-hero");
-      if (newBtn) newBtn.classList.add("btn-hero");
+    }
+  }
+  if (newBtn) {
+    if (has) {
+      newBtn.classList.remove("btn-hero");
+      newBtn.textContent = "📜 View History Video";
+      newBtn.title = "Watch the Fall of Troy cinematic and continue voyage";
+    } else {
+      newBtn.classList.add("btn-hero");
+      newBtn.textContent = "Begin the Voyage";
+      newBtn.title = "Begin Odysseus's journey home from Troy";
     }
   }
   Updater.render();
+}
+
+function playHistoryVideoAndContinue() {
+  showScreen(null); // hide title and screens
+  const target = Math.min(Save.data.lastChapter !== undefined ? Save.data.lastChapter : (Save.data.unlocked || 1), 6);
+  Audio.resume();
+
+  film = new FilmIntro(engine, Audio, () => {
+    film = null;
+    // Continue where it was left!
+    startChapter(target);
+  });
+  engine.setScene(film);
 }
 
 /* ---------------- the Armory — weapons & arrows, 3 tiers each ---------------- */
@@ -255,14 +282,15 @@ function bindUI() {
 
   $("btn-new-game").addEventListener("click", () => {
     if (Updater.isLocked()) return;
-    const hasProgress = (Save.data.completed && Save.data.completed.length > 0) || (Save.data.unlocked && Save.data.unlocked > 1) || (Save.data.lastChapter && Save.data.lastChapter > 0);
-    if (hasProgress) {
-      const ok = confirm("Start a new voyage? Your journey progress will be restarted from Troy.");
-      if (!ok) return;
-    }
     Audio.resume();
-    Save.reset();
-    startChapter(0);
+    if (hasVoyageStarted()) {
+      // User already began the voyage: play history video and continue where they left off
+      playHistoryVideoAndContinue();
+    } else {
+      // First time starting voyage:
+      Save.recordChapter(0);
+      startChapter(0);
+    }
   });
 
   $("btn-continue").addEventListener("click", () => {

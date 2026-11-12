@@ -495,6 +495,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
         web.addJavascriptInterface(new AndroidTTSBridge(), "AndroidTTS");
         web.addJavascriptInterface(new AndroidUpdater(), "AndroidUpdater");
+        web.setWebChromeClient(new android.webkit.WebChromeClient());
 
         web.setWebViewClient(new android.webkit.WebViewClient() {
             @Override
