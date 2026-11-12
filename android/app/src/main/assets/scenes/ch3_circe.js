@@ -110,7 +110,7 @@ export class Ch3Scene extends ChapterScene {
     if (this.potion === "0-1") {
       this.objective("<b>Clarifying Draught ready</b> — rescue a crewman; this draught takes priority · <b>" + left + "</b> left");
     } else if (this.potion) {
-      this.objective("A potion is prepared but cannot break Circe's hex. Brew a Clarifying Draught or gather Moly for the Cauldron · <b>" + left + "</b> left");
+      this.objective("A brewed potion is ready for rescue; Moly Elixir is used first when no Clarifying Draught is carried · <b>" + left + "</b> left");
     } else if (this.hasMolyDraught && this.elixirCharges > 0) {
       this.objective(
         "<b>Moly Elixir Infused (" + this.elixirCharges + " charges)</b> — Rescue a bewitched crewman with <span class=\"kbd\">SPACE</span>/<span class=\"kbd\">ENTER</span> or ACT · <b>" + left + "</b> left"
@@ -330,7 +330,8 @@ export class Ch3Scene extends ChapterScene {
     const px = pig.at * W;
     const useClarifying = this.potion === "0-1";
     const useMoly = !useClarifying && this.hasMolyDraught && this.elixirCharges > 0;
-    if (!useClarifying && !useMoly) {
+    const useExistingPotion = !useClarifying && !useMoly && !!this.potion;
+    if (!useClarifying && !useMoly && !useExistingPotion) {
       this.note("Circe's hex holds. Brew a Clarifying Draught or infuse Moly at the Cauldron.");
       PixelVFX.spawn("arcane/rune-circle", px, gy - 8, { palette: "circe", scale: 0.8 });
       this.audio.sfx("error");
@@ -339,7 +340,7 @@ export class Ch3Scene extends ChapterScene {
 
     pig.cured = true;
     this.pigsCured++;
-    if (useClarifying) this.potion = null;
+    if (useClarifying || useExistingPotion) this.potion = null;
     else this.elixirCharges--;
 
     this.audio.sfx("potion");
