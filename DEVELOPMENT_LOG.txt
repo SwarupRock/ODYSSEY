@@ -2513,3 +2513,77 @@ Browser: not tested. Android WebView: not tested.
 Next recommended action:
 Review the focused fix commit and updated PR #1 head before merge.
 --------------------------------------------------
+
+--------------------------------------------------
+ENTRY 030 — PREPARE OTA RELEASE V1.2.7 BUILD 9
+
+Date: 2026-11-13
+Status: COMPLETED — READY FOR RELEASE REVIEW
+Development phase: Phase 7 — Polish and release
+
+Objective:
+Prepare the approved v1.2.7 build 9 OTA manifest on main after the integration
+PR merge, without rebuilding or distributing an APK.
+
+Work completed:
+- Fast-forwarded the clean local main branch to origin/main at merge commit
+  d0f445effdbc0eb95be3cdc1b2e3681ed6aaaa54.
+- Ran the existing OTA generator for v1.2.7 build 9 with the approved release
+  notes. It updated the root and Android OTA manifests.
+- Independently recomputed the generator's SHA-256 file-list hash and checked
+  all listed paths, required runtime files, manifest values, and parity.
+- Reviewed Chapter III rescue/sword/finale implementation, the shared movement
+  fixes, the OTA generator, updater file-list handling, and relevant project
+  design/specification sections. No gameplay source or updater code changed.
+
+Files modified:
+- version.json
+- android/app/src/main/assets/version.json
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Kept the release note exactly: “Chapter III alchemy and rescue
+  improvements; shared movement and dodge fixes; Chapter VI movement
+  improvements”.
+- Preserved mandatory=true and the existing main base URL. The generated list
+  contains all files from the generator's configured runtime roots. The
+  bundled PixelFX NOTICE.md is included by its recursive js-directory rule as
+  third-party attribution; no project development logs, tests, APKs, or build
+  files are listed.
+- Did not change Gradle/build metadata, updater implementation, or APK files.
+
+Testing performed:
+- `node --test tests/movement-regressions.test.mjs` — passed (4 tests).
+- `node --experimental-default-type=module --test tests/*.test.mjs` — passed
+  (4 tests).
+- `node --check` for every `.js` file under root/Android `js/` and `scenes/`
+  — passed.
+- Byte comparisons for root/Android movement.js and Chapter I, III, and VI
+  scenes — passed.
+- Independently recomputed the manifest hash; checked 239 paths exist, all
+  required runtime paths are listed, movement.js and stamina.js are included,
+  and the manifests are byte-identical — passed.
+- `git diff --check` — passed after the documentation append.
+
+Test results:
+Source-level tests, syntax, parity and manifest integrity passed. The manifest
+hash is c92ab30e1351. Browser gameplay and physical Android runtime were not
+tested. No APK was rebuilt.
+
+Outstanding issues:
+- Browser and Android runtime validation remain outstanding.
+
+Platform validation:
+Browser and Android runtime not tested.
+
+Next recommended action:
+Commit the reviewed four-file release change and push main normally for the
+OTA publication workflow.
+--------------------------------------------------

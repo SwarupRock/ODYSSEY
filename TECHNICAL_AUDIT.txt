@@ -661,3 +661,33 @@ Y. PR #1 REVIEW — CHAPTER I AND VI DUPLICATE MOVEMENT FIXES
 - [LIMITATION] Tests are deterministic source-level scene/controller tests;
   browser and physical Android WebView runtime behavior was not exercised.
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Z. OTA RELEASE CANDIDATE — V1.2.7 BUILD 9
+--------------------------------------------------------------------------------
+- [VERIFIED] Local main was clean before synchronization and fast-forwarded to
+  origin/main commit d0f445effdbc0eb95be3cdc1b2e3681ed6aaaa54, whose parents
+  are ddea17a9495bf9df09e9a7e8c1377d7e371d33b7 and
+  6807647fdda728c7af45f2c508b832e06c133796 (the merged integration head).
+- [VERIFIED] The existing `scripts/bump-update.mjs` generator produced
+  version 1.2.7, build 9, mandatory=true, with the requested release notes
+  and unchanged main base URL. The root and Android manifests are identical.
+- [VERIFIED] The manifest lists 239 files. Every path exists; all generated
+  runtime roots and required Chapter I/III/VI, movement, stamina, engine,
+  index, style, manifest and service-worker files are present. Independent
+  recomputation using sorted path + newline + file bytes matched hash
+  c92ab30e1351. The included `js/pixelfx/NOTICE.md` is bundled third-party
+  attribution selected by the generator's recursive `js` inclusion rule.
+  Project documentation/logs, tests, APKs and build files are absent.
+- [VERIFIED] Source review found Chapter III's approved three-person roster,
+  Clarifying Draught priority, Moly Elixir and carried-potion fallbacks,
+  one-potion rescue path, three-rescue threshold, protected finale timer,
+  contextual 25-damage sword strike and scene-owned impact feedback. The
+  current movement regression suite covers Chapter I and VI corrections.
+- [VERIFIED] `node --test tests/movement-regressions.test.mjs` and the existing
+  ESM-compatible full test command passed four tests each. JavaScript syntax
+  checks over root and Android runtime `js`/`scenes`, required source parity,
+  and `git diff --check` passed after documentation append.
+- [LIMITATION] Tests are deterministic source-level tests. Browser gameplay
+  and physical Android WebView were not exercised. The APK was not rebuilt.
+- [PENDING] Commit the reviewed four-file release change and push main normally.
+--------------------------------------------------------------------------------
