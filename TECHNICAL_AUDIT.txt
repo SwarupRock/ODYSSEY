@@ -543,3 +543,74 @@ S. TEAM INTEGRATION STAGE 4E — CHAPTER III RECONCILIATION AND MAIN MERGE
 - [POTENTIAL] Browser gameplay and physical Android WebView runtime validation
   remain outstanding. The merged APK was not rebuilt or installed.
 --------------------------------------------------------------------------------
+T. TEAM INTEGRATION STAGE 4E.1 — CHAPTER III COMBAT ISOLATION AND FINALE LIFECYCLE
+--------------------------------------------------------------------------------
+- [VERIFIED] `scenes/ch3_circe.js` no longer imports or calls the shared
+  `Cinematic` combat presentation API. Its contextual sword action keeps the
+  25-point beast damage and defeat reward while drawing a short local slash
+  pose and spawning visual-only PixelVFX effects without automatic hit logic.
+- [VERIFIED] The finale's 800 ms timeout is stored, cleared in cleanup, and
+  guarded against inactive, completed, or replaced scenes. Asynchronous finale
+  continuations check the active scene after dialogue and before invoking
+  chapter progression.
+- [VERIFIED] Contextual Space/Enter/ACT input, unsupported generic-action
+  rejection, generic combat cluster disablement, hidden dodge, and the approved
+  potion rescue order remain in place. Root and Android Chapter III scenes are
+  byte-identical.
+- [VERIFIED] Both scene files pass `node --check`; focused extracted-method
+  checks for sword, rescue, input, timer cancellation, and stale callback
+  behavior passed; `git diff --check` passed.
+- [POTENTIAL] These isolated source checks do not replace full browser or
+  physical Android WebView gameplay validation, which remains pending.
+--------------------------------------------------------------------------------
+U. TEAM INTEGRATION STAGE 4E.2 — CHAPTER III SWORD IMPACT FEEDBACK
+--------------------------------------------------------------------------------
+- [VERIFIED] Git history and the prior `Cinematic.performMove("slash")` path
+  establish the PixelVFX hit event at 0.06 seconds. The wrapper converts its
+  `stop: 0.14` to `Engine.hitStop(0.105)` and `amp: 2` to
+  `Engine.shake(1.0)`.
+- [VERIFIED] Chapter III now schedules those calls 60 ms after a successful
+  living-beast strike. Misses do not schedule them; each timer has a one-shot
+  guard and is cancelled during cleanup. The 25 damage and defeat reward path
+  remain unchanged.
+- [VERIFIED] The historical hit metadata's `shake: 0.18` is not consumed by
+  PixelVFX's actual wrapper. `Engine.shake(1.0)` has no finite duration and is
+  reset on scene replacement. No new duration was invented.
+- [VERIFIED] Root/Android scene parity, both syntax checks, focused actual-class
+  fake-timer checks, and `git diff --check` passed. No shared combat API or
+  global PixelVFX behavior was changed.
+- [POTENTIAL] Browser and physical Android gameplay validation remain pending.
+--------------------------------------------------------------------------------
+V. TEAM INTEGRATION STAGE 4E.3 — CHAPTER III FINITE IMPACT SHAKE
+--------------------------------------------------------------------------------
+- [VERIFIED] `Engine.shake()` raises the camera amplitude without a duration;
+  `Engine.setScene()` resets camera shake and hit-stop. No global engine change
+  was made.
+- [VERIFIED] The 0.18 second duration is an implemented PixelFX convention:
+  `createAct()` assigns `h.shake` to its shake countdown and returns an
+  amplitude scaled by remaining-time ratio. The sword-slash hit specifies 0.18.
+- [VERIFIED] Chapter III now fades the impact contribution linearly from
+  amplitude 1.0 over 180 ms to its pre-impact shake baseline, preserving the
+  immediate 0.7 shake. Cleanup cancels pending impact timers and restores an
+  active impact pulse's baseline when the scene is still current.
+- [VERIFIED] Fake-clock checks cover the 60 ms onset, the 180 ms fade, miss and
+  duplicate suppression, cleanup, scene replacement, 25 damage and defeat
+  reward. Syntax, root/Android parity, and `git diff --check` pass.
+- [POTENTIAL] Browser and physical Android gameplay validation remain pending.
+--------------------------------------------------------------------------------
+W. TEAM INTEGRATION STAGE 4E.4 — CHAPTER III SHAKE OWNERSHIP
+--------------------------------------------------------------------------------
+- [VERIFIED] Engine's max-only `shake()` can hide a weaker shake request that
+  arrives while the Chapter III impact pulse is stronger. Chapter III's local
+  `sceneShake()` records such requests as the new baseline; stronger requests
+  update both baseline and peak, preventing pulse expiry from restoring stale
+  camera state.
+- [VERIFIED] Cleanup restores pulse state only while its Chapter III instance
+  is still the engine's current scene. A replacement scene's shake is not
+  reset. Duplicate impact callbacks remain one-shot.
+- [VERIFIED] A deterministic actual-class fake-clock harness passed overlap,
+  cleanup, replacement ownership, miss, duplicate, damage, and reward cases.
+  Root/Android parity passed. JavaScript syntax checks and `git diff --check`
+  passed before integration.
+- [POTENTIAL] Browser and physical Android gameplay validation remain pending.
+--------------------------------------------------------------------------------

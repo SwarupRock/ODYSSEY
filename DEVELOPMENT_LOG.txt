@@ -2052,3 +2052,314 @@ Next recommended action:
 Review the local merge and Chapter III reconciliation. Do not push or begin OTA
 publication until review approval.
 --------------------------------------------------
+
+ENTRY 024 — CHAPTER III CRITICAL ISOLATION AND FINALE LIFECYCLE FIXES
+
+Date: 2026-11-13
+Status: COMPLETED — BROWSER AND ANDROID RUNTIME VALIDATION PENDING
+Development phase: Team Integration — Stage 4E.1
+
+Objective:
+Remove Chapter III's dependency on shared generic combat presentation and
+prevent delayed or asynchronous Circe finale work from continuing after the
+scene has been cleaned up or replaced.
+
+Work completed:
+- Removed the Chapter III import and calls to Cinematic.performMove,
+  Cinematic.impact, Cinematic.damageNumber, and Cinematic.getHeroPose.
+- Preserved the contextual basic sword strike, 25 damage, beast health and
+  defeat rewards. Chapter III now draws its short slash pose locally and uses
+  visual-only PixelVFX slash, hit-flash, spark, and damage-number effects.
+  The slash effect does not opt into PixelVFX automatic hit processing.
+- Stored the 800 ms finale timer, prevented duplicate scheduling, cleared it
+  during cleanup, and guarded the callback against inactive, completed, or
+  replaced scenes.
+- Added active-scene checks around the finale dialogue/reward continuation and
+  before chapter progression so a return-home or scene replacement cannot
+  advance into Chapter IV from stale async work.
+- Preserved approved rescue selection and control isolation: Clarifying Draught
+  priority, Moly fallback, then other carried recipe potion; generic combat
+  remains disabled, dodge remains hidden, and Space/Enter/ACT remain contextual.
+- Copied the root scene byte-for-byte to the Android packaged scene.
+
+Files modified:
+- scenes/ch3_circe.js
+- android/app/src/main/assets/scenes/ch3_circe.js
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- The Chapter III sword animation pose and effect presentation are scene-owned;
+  the contextual hit still subtracts 25 from one nearby living beast. No shared
+  combat move, dodge, or auto-hit API is called.
+- Finale callbacks require the scene to remain active and be the engine's
+  current scene. Cleanup is idempotent with respect to the timer handle.
+- No other scene, shared combat module, OTA manifest, APK, or Git history was
+  changed. No commit or push was made.
+
+Testing performed:
+- `node --check scenes/ch3_circe.js` — passed.
+- `node --check android/app/src/main/assets/scenes/ch3_circe.js` — passed.
+- `cmp -s scenes/ch3_circe.js android/app/src/main/assets/scenes/ch3_circe.js`
+  — passed.
+- Focused temporary Node harness executed extracted scene methods with mocked
+  browser dependencies: contextual slash damage and defeat reward, unsupported
+  action ignores, Space/Enter and ACT route, Clarifying priority, Moly fallback,
+  repeat-rescue rejection, finale 800 ms scheduling, timer cleanup, stale
+  callback rejection, and active-scene/control-isolation checks — passed.
+- Static check confirmed no Cinematic, MovementController, or combat.js
+  reference remains in Chapter III.
+- `git diff --check` — passed.
+- No repository test suite was run. Browser gameplay and physical Android
+  WebView runtime were not tested.
+
+Test results:
+All source syntax, focused isolated-method, static isolation, and root/Android
+parity checks passed. These checks do not establish full interactive browser or
+device behavior.
+
+Outstanding issues:
+- Verify Chapter III gameplay in a browser and physical Android WebView after
+  review. Do not rebuild/install the APK or invoke the updater for this task.
+
+Platform validation:
+Browser: isolated source-method checks only; gameplay runtime not tested.
+Android: packaged source parity and syntax checked; native runtime not tested.
+
+Next recommended action:
+Review the four-file local diff. Push only after explicit review approval.
+--------------------------------------------------
+
+ENTRY 025 — CHAPTER III SCENE-OWNED SWORD IMPACT FEEDBACK
+
+Date: 2026-11-13
+Status: COMPLETED — BROWSER AND ANDROID RUNTIME VALIDATION PENDING
+Development phase: Team Integration — Stage 4E.2
+
+Objective:
+Restore the Chapter III sword strike's historical impact hit-stop and timed
+screen-shake trigger without reintroducing the shared combat presentation API.
+
+Work completed:
+- Traced the prior `Cinematic.performMove("slash")` path in Git history and
+  `PixelVFX.update()`. Its slash hit event fires at 0.06 seconds; `stop: 0.14`
+  is passed to Engine as 0.105 seconds (`0.14 * 0.75`), and `amp: 2` produces
+  `Engine.shake(1.0)` (`2 * 0.5`).
+- Scheduled this feedback 60 ms after a successful living-beast strike, with
+  scene-active checks and a per-event fired guard. Misses schedule no feedback.
+- Stored pending impact timers in Chapter III and cancel them in cleanup.
+- Preserved the scene-owned slash pose, immediate 25-point damage, hit flash,
+  damage text, and beast defeat reward. Rescue, alchemy, and input behavior
+  were left unchanged.
+- Kept the root and Android packaged Chapter III scenes byte-identical.
+
+Files modified:
+- scenes/ch3_circe.js
+- android/app/src/main/assets/scenes/ch3_circe.js
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- The PixelVFX auto-hit metadata also contains `shake: 0.18`, but the actual
+  PixelVFX wrapper does not consume that field. It calls `Engine.shake(1.0)`
+  at impact; `Engine.shake()` has no finite duration and camera shake is reset
+  when Engine.setScene replaces the scene. The restoration matches this actual
+  behavior instead of inventing a separate shake duration.
+- The feedback uses the scene's own 60 ms timer and the existing Engine
+  hit-stop/shake primitives. It does not use `Cinematic`, `MovementController`,
+  generic move routing, or shared PixelVFX changes.
+- No commit, push, merge, OTA manifest, build metadata, or APK operation was
+  performed.
+
+Testing performed:
+- `node --check scenes/ch3_circe.js` — passed.
+- `node --check android/app/src/main/assets/scenes/ch3_circe.js` — passed.
+- Actual Chapter III class source was run in a temporary Node harness with
+  mocked browser dependencies and fake timers. It verified the existing
+  immediate `shake(0.7)` remains, no impact hit-stop or `shake(1.0)` before
+  60 ms, one `hitStop(0.105)` and `shake(1.0)` at 60 ms, no impact feedback on
+  a miss, duplicate callback rejection, cleanup cancellation, post-cleanup
+  suppression, 25 damage, and one defeat reward — passed.
+- `cmp -s` root/Android parity — passed.
+- `git diff --check` — passed.
+- Browser gameplay and physical Android WebView were not tested.
+
+Test results:
+Syntax, focused actual-class/fake-timer behavior, damage/reward, parity, and
+diff checks passed. Runtime testing in a browser or on an Android device remains
+pending.
+
+Outstanding issues:
+- Confirm the impact feedback and camera shake feel in browser and Android
+  gameplay after review. The original Engine shake amplitude has no finite
+  duration and is reset by scene replacement.
+
+Platform validation:
+Browser: actual scene class with mocked dependencies and fake timers; no
+browser gameplay runtime.
+Android: packaged scene parity and syntax only; device runtime not tested.
+
+Next recommended action:
+Review the four-file diff before any commit or push.
+--------------------------------------------------
+
+ENTRY 026 — CHAPTER III FINITE IMPACT SHAKE LIFETIME
+
+Date: 2026-11-13
+Status: COMPLETED — BROWSER AND ANDROID RUNTIME VALIDATION PENDING
+Development phase: Team Integration — Stage 4E.3
+
+Objective:
+Ensure Chapter III's restored impact shake has a finite scene-owned lifetime,
+preserves the existing immediate shake, and cannot leave stale shake state
+after cleanup or scene replacement.
+
+Work completed:
+- Confirmed `Engine.shake()` only raises `camera.shake`; it has no duration or
+  decay. `Engine.setScene()` resets camera shake and hit-stop.
+- Inspected the actual `createAct()` implementation: it consumes each hit's
+  `shake` value as a duration, linearly reducing shake amplitude to zero. The
+  sword slash hit specifies 0.18 seconds, so Chapter III now uses that
+  established 180 ms duration for its scene-owned impact contribution.
+- At impact, the scene raises amplitude to 1.0 and linearly fades the added
+  contribution over 180 ms to the pre-impact baseline. The existing immediate
+  0.7 shake is therefore retained after the impact pulse ends.
+- Cleanup clears the active scene-owned shake and restores its baseline when
+  Chapter III is still current. Already pending impact timers are canceled; a
+  replaced scene is protected by the active-scene guard.
+- Kept the 60 ms impact timing, 0.105 second hit-stop, 25 damage, defeat reward,
+  scene-owned slash, and all other Chapter III behavior.
+
+Files modified:
+- scenes/ch3_circe.js
+- android/app/src/main/assets/scenes/ch3_circe.js
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- The 180 ms lifetime is grounded in `js/pixelfx/core/act.js`, where the
+  `shake` hit field sets the shake countdown and `get shake()` linearly scales
+  amplitude by remaining time. This is an implemented project convention, not
+  an assumption based on unused metadata alone.
+- The impact's baseline restore only replaces the current camera value when it
+  has not been raised by a stronger independent shake. No global Engine or
+  PixelVFX behavior was changed.
+- The implementation uses Chapter III scene tick state for the fade and only
+  retains the existing 60 ms pending-impact timeout. Cleanup cancels that
+  timeout and clears the active fade state.
+
+Testing performed:
+- `node --check scenes/ch3_circe.js` — passed.
+- `node --check android/app/src/main/assets/scenes/ch3_circe.js` — passed.
+- Actual Chapter III class source with mocked browser dependencies and a fake
+  clock verified no impact shake before 60 ms; amplitude 1.0 at impact; linear
+  fade from 1.0 through 0.85 to the immediate-shake baseline 0.7 over 0.18
+  seconds; no feedback on a miss; duplicate callback non-extension; cleanup
+  cancellation and baseline restoration; replaced-scene suppression; 25
+  damage; and one Moly Essence reward — passed.
+- `cmp -s` root/Android scene parity — passed.
+- `git diff --check` — passed.
+- Browser gameplay and physical Android WebView were not tested.
+
+Test results:
+Syntax, fake-clock behavior, damage/reward, parity, and diff checks passed.
+Full browser and Android runtime behavior remains unverified.
+
+Outstanding issues:
+- Review the changed scene and documentation diff. Test the impact shake in
+  browser and Android gameplay after review.
+
+Platform validation:
+Browser: Chapter III class with fake clock and mocked dependencies; no browser
+gameplay runtime.
+Android: packaged source parity and syntax only; device runtime not tested.
+
+Next recommended action:
+Review this local change before any commit or push.
+--------------------------------------------------
+
+ENTRY 027 — CHAPTER III IMPACT SHAKE OVERLAP OWNERSHIP
+
+Date: 2026-11-13
+Status: COMPLETED — READY FOR INTEGRATION VALIDATION
+Development phase: Team Integration — Stage 4E.4
+
+Objective:
+Ensure the finite Chapter III impact shake cannot overwrite a newer shake
+request from another Chapter III event or from a replacement scene.
+
+Work completed:
+- Routed Chapter III shake requests through a scene-owned recorder. During an
+  active impact pulse, a newer requested amplitude updates the pulse baseline
+  and peak even when Engine.shake()'s max behavior leaves the camera value
+  unchanged.
+- Preserved lower current requests and stronger external shake values; pulse
+  completion restores the latest recorded baseline rather than a stale value.
+- Kept the 60 ms impact callback one-shot, 0.105 second hit-stop, 180 ms linear
+  decay, immediate 0.7 strike shake, 25 damage, and defeat reward.
+- Cleanup restores the impact baseline only while this Chapter III instance is
+  still current. A replacement scene's camera shake is left untouched.
+- Synchronized the Android Chapter III copy byte-for-byte.
+
+Files modified:
+- scenes/ch3_circe.js
+- android/app/src/main/assets/scenes/ch3_circe.js
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+None.
+
+Files deleted:
+None.
+
+Technical decisions:
+- Engine.shake() remains max-amplitude-only; no global engine or PixelVFX code
+  was changed. Chapter III records its own shake requests while the local pulse
+  is active, so even weaker new requests that Engine.shake() would otherwise
+  hide become the new restore baseline.
+- Scene replacement ownership is checked before cleanup writes camera state.
+
+Testing performed:
+- Actual Chapter III class source with fake timers verified overlapping weaker
+  and stronger shake requests, pulse expiry, cleanup restoration, replacement
+  scene protection, duplicate callback non-extension, miss suppression, 25
+  damage, and single defeat reward — passed.
+- Root/Android parity — passed.
+- JavaScript syntax checks and `git diff --check` — pending final integration
+  validation in this task.
+
+Test results:
+Focused overlap and ownership harness passed. Final project-level syntax,
+parity, and diff checks remain to be repeated before commit.
+
+Outstanding issues:
+- None identified in the overlap test. Full browser and physical Android
+  gameplay remain untested.
+
+Platform validation:
+Browser: no browser gameplay runtime.
+Android: packaged source parity checked; device runtime not tested.
+
+Next recommended action:
+Repeat complete Chapter III and repository validation, then continue the
+approved integration workflow.
+--------------------------------------------------

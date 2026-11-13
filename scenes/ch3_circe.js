@@ -10,7 +10,6 @@ import { PAL, drawSky, drawGround, drawRidge, drawTorch, drawOdysseus, drawCirce
 import { ChapterScene, sleep } from "../js/scenefw.js";
 import { Gear } from "../js/gear.js";
 import { HUD, Mech } from "../js/ui.js";
-import { Cinematic } from "../js/combat.js";
 import { PixelVFX } from "../js/pixelvfx.js";
 import { Stick } from "../js/stick.js";
 
@@ -38,6 +37,11 @@ export class Ch3Scene extends ChapterScene {
     this.cauldronActive = false;
     this._cauldronPulse = 0;
     this._finaleStarted = false;
+    this._finaleTimer = null;
+    this._sceneActive = true;
+    this._swordStrike = null;
+    this._pendingStrikeImpacts = new Set();
+    this._impactShake = null;
 
     // The three bewitched crewmen across the island
     this.pigs = [
@@ -77,6 +81,17 @@ export class Ch3Scene extends ChapterScene {
   }
 
   cleanup() {
+    this._sceneActive = false;
+    if (this._finaleTimer !== null) clearTimeout(this._finaleTimer);
+    this._finaleTimer = null;
+    for (const impact of this._pendingStrikeImpacts || []) clearTimeout(impact.timer);
+    this._pendingStrikeImpacts?.clear();
+    if (this._impactShake) {
+      if (this.engine.scene === this && this.engine.camera.shake <= this._impactShake.lastApplied) {
+        this.engine.camera.shake = this._impactShake.baseline;
+      }
+      this._impactShake = null;
+    }
     Stick.setCombatMode(false);
     Stick.setDodgeVisible(false);
     if (this.selected?.length) for (const i of this.selected) this.inventory[i]++;
@@ -134,6 +149,11 @@ export class Ch3Scene extends ChapterScene {
   onPointerUp() { this._holdDir = 0; }
 
   tick(dt) {
+    this.updateTimedImpactShake(dt);
+    if (this._swordStrike) {
+      this._swordStrike.elapsed += dt;
+      if (this._swordStrike.elapsed >= this._swordStrike.duration) this._swordStrike = null;
+    }
     if (this.benchOpen) return;
     const W = this.engine.W;
     this._cauldronPulse += dt;
@@ -200,7 +220,7 @@ export class Ch3Scene extends ChapterScene {
             if (this.hitPlayer(b.at * W, this.groundY() - 40) === "hit") {
               this.hp--; HUD.health(this.hp);
               this.audio.sfx("crash");
-              this.engine.shake(1.2);
+              this.sceneShake(1.2);
               if (this.hp <= 0) this.knocked();
             }
           }
@@ -308,7 +328,7 @@ export class Ch3Scene extends ChapterScene {
 
     this.audio.sfx("potion");
     this.audio.sfx("reveal");
-    this.engine.shake(0.6);
+    this.sceneShake(0.6);
 
     // Dazzling eruption of arcane & holy magic
     PixelVFX.spawn("arcane/magic-circle-cast", cx, gy - 8, { palette: "circe", scale: 1.25 });
@@ -346,7 +366,7 @@ export class Ch3Scene extends ChapterScene {
     this.audio.sfx("potion");
     this.audio.sfx("sword");
     this.audio.sfx("reveal");
-    this.engine.shake(0.8);
+    this.sceneShake(0.8);
 
     // Eruption of divine healing and transmutation reversal
     PixelVFX.spawn("holy/heal", px, gy, { palette: "moly", scale: 1.25 });
@@ -359,11 +379,80 @@ export class Ch3Scene extends ChapterScene {
     this.note(PIG_NAMES[pigIdx] + " stands upright! 'The witch's hex is broken!' (" + this.pigsCured + "/3)");
     this.updateObjective();
 
-    if (this.pigsCured >= 3 && !this._finaleStarted) {
-      this._finaleStarted = true;
-      setTimeout(() => this.circeScene(), 800);
-    }
+    if (this.pigsCured >= 3 && !this._finaleStarted) this.scheduleFinale();
     return true;
+  }
+
+  scheduleFinale() {
+    if (this._finaleStarted || this._finaleTimer !== null || this.pigsCured < 3) return;
+    this._finaleStarted = true;
+    this._finaleTimer = setTimeout(() => {
+      this._finaleTimer = null;
+      if (!this.isActiveScene() || this.pigsCured < 3) return;
+      this.circeScene();
+    }, 800);
+  }
+
+  isActiveScene() {
+    return this._sceneActive && !this.done && this.engine.scene === this;
+  }
+
+  sceneShake(amount) {
+    if (this._impactShake && amount > this._impactShake.baseline) {
+      this._impactShake.baseline = amount;
+      this._impactShake.peak = Math.max(this._impactShake.peak, amount);
+    }
+    this.engine.shake(amount);
+  }
+
+  scheduleSwordImpactFeedback() {
+    if (!this.isActiveScene()) return;
+    const impact = { fired: false, timer: null };
+    this._pendingStrikeImpacts.add(impact);
+    impact.timer = setTimeout(() => {
+      this._pendingStrikeImpacts.delete(impact);
+      impact.timer = null;
+      if (impact.fired || !this.isActiveScene()) return;
+      impact.fired = true;
+      this.engine.hitStop(0.105);
+      this.startTimedImpactShake();
+    }, 60);
+  }
+
+  startTimedImpactShake() {
+    const active = this._impactShake;
+    const baseline = active ? active.baseline : this.engine.camera.shake;
+    this.engine.shake(1.0);
+    this._impactShake = {
+      baseline,
+      peak: this.engine.camera.shake,
+      elapsed: 0,
+      duration: 0.18,
+      lastApplied: this.engine.camera.shake,
+    };
+  }
+
+  updateTimedImpactShake(dt) {
+    const pulse = this._impactShake;
+    if (!pulse) return;
+    if (!this.isActiveScene()) {
+      this._impactShake = null;
+      return;
+    }
+    pulse.elapsed += Math.max(0, dt);
+    if (this.engine.camera.shake > pulse.lastApplied) {
+      pulse.baseline = Math.max(pulse.baseline, this.engine.camera.shake);
+      pulse.peak = Math.max(pulse.peak, pulse.baseline);
+    }
+    if (pulse.elapsed >= pulse.duration) {
+      if (this.engine.camera.shake <= pulse.lastApplied) this.engine.camera.shake = pulse.baseline;
+      this._impactShake = null;
+      return;
+    }
+    const remaining = 1 - pulse.elapsed / pulse.duration;
+    const amplitude = pulse.baseline + (pulse.peak - pulse.baseline) * remaining;
+    if (this.engine.camera.shake <= pulse.lastApplied) this.engine.camera.shake = amplitude;
+    pulse.lastApplied = this.engine.camera.shake;
   }
 
   /** Executes dynamic sword combat moves with PixelFX */
@@ -372,7 +461,12 @@ export class Ch3Scene extends ChapterScene {
     const W = this.engine.W, gy = this.groundY();
     const px = this.playerX * W;
 
-    Cinematic.performMove(move, px, gy, this.facing, { swordTier: Gear.kit().sword.id, engine: this.engine });
+    this._swordStrike = { elapsed: 0, duration: 0.34, direction: this.facing };
+    PixelVFX.spawn("melee/sword-slash", px + this.facing * 20, gy - 38, {
+      flip: this.facing < 0,
+      palette: "bronze",
+      scale: 0.95,
+    });
     this.audio.sfx("sword");
 
     const beast = this.beasts.find((b) => b.alive && Math.abs(b.at - this.playerX) < 0.11);
@@ -381,10 +475,11 @@ export class Ch3Scene extends ChapterScene {
       const dmg = 25;
       beast.hp -= dmg;
       const bx = beast.at * W;
-      this.engine.shake(0.7);
+      this.sceneShake(0.7);
+      this.scheduleSwordImpactFeedback();
 
-      Cinematic.impact(bx, gy - 26, PAL.bronzeBright, true);
-      Cinematic.damageNumber(bx, gy - 46, dmg, false);
+      PixelVFX.spawn("impacts/hit-flash", bx, gy - 26, { palette: "bronze", scale: 0.95 });
+      PixelVFX.spawn("ui/damage-number", bx, gy - 46, { text: "-" + dmg, palette: "blood", scale: 0.92 });
 
       if (beast.hp <= 0) {
         beast.alive = false;
@@ -402,6 +497,7 @@ export class Ch3Scene extends ChapterScene {
   }
 
   async circeScene() {
+    if (!this.isActiveScene()) return;
     this.objective(null);
     await this.say(
       { who: "NARRATOR", text: "As the third sailor broke free from his bristles, the great doors of Circe's palace swung open." },
@@ -412,6 +508,7 @@ export class Ch3Scene extends ChapterScene {
       { who: "CIRCE", text: "I swear it by the waters of Death. Come, feast as heroes. You have a longer road ahead than any living man." },
       { who: "NARRATOR", text: "Circe kept her oath. Before dawn, she guided Odysseus toward the true threshold of his fate: the Underworld." }
     );
+    if (!this.isActiveScene()) return;
 
     // Award Circe's legendary gifts
     const gotSword = Gear.award("sword", 2);
@@ -423,9 +520,12 @@ export class Ch3Scene extends ChapterScene {
         { who: "CIRCE", text: "Take a guest-gift: the Moly-tempered blade, and an Aegis half-cape woven to turn aside sorcery and steel." },
         { who: "NARRATOR", text: "Equipped with Circe's gifts, Odysseus prepares to cross the Styx into the House of Hades." }
       );
+      if (!this.isActiveScene()) return;
     }
     await this.finish({ hubris: 0 });
+    if (this.engine.scene !== this) return;
     const { startNext } = await import("../js/main.js");
+    if (this.engine.scene !== this) return;
     startNext();
   }
 
@@ -512,7 +612,19 @@ export class Ch3Scene extends ChapterScene {
     }
 
     // Player (Odysseus) with visible sword always in hand
-    const heroPose = Cinematic.getHeroPose();
+    const strike = this._swordStrike;
+    const u = strike ? Math.max(0, Math.min(1, strike.elapsed / strike.duration)) : 1;
+    const swing = strike ? Math.sin(u * Math.PI) : 0;
+    const heroPose = strike ? {
+      attackType: "slash",
+      k: u,
+      dy: 0,
+      dx: strike.direction * swing * 16,
+      lean: 0.22 * swing,
+      spin: 0,
+      bladeAngle: 1.3 - u * 2.5,
+      shield: false,
+    } : null;
     drawOdysseus(ctx, this.playerX * W, gy, 1.08, this.facing, this.t, false, Math.abs(this.engine.axisX() || this._holdDir || 0) > 0.05, Gear.kit(), heroPose);
     drawNameTag(ctx, this.playerX * W, gy - 108 + (heroPose ? (heroPose.dy || 0) : 0), "ODYSSEUS");
 
