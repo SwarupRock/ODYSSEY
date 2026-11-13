@@ -95,6 +95,7 @@ import * as ui_combo_counter from "./pixelfx/fx/ui/combo-counter.js";
 import * as ui_health_bar_hit from "./pixelfx/fx/ui/health-bar-hit.js";
 
 import * as transitions_slash_wipe from "./pixelfx/fx/transitions/slash-wipe.js";
+import * as transitions_burn_away from "./pixelfx/fx/transitions/burn-away.js";
 
 import * as weather_fireflies from "./pixelfx/fx/weather/fireflies.js";
 import * as weather_god_rays from "./pixelfx/fx/weather/god-rays.js";
@@ -191,6 +192,7 @@ export const FX_MODULES = {
   "ui/health-bar-hit": ui_health_bar_hit,
 
   "transitions/slash-wipe": transitions_slash_wipe,
+  "transitions/burn-away": transitions_burn_away,
 
   "weather/fireflies": weather_fireflies,
   "weather/god-rays": weather_god_rays,
@@ -476,4 +478,6 @@ export const PixelVFX = {
     this.active.length = 0;
   },
 };
+
+export { acquireSurface, releaseSurface, createFrame, clearFrame, createFx, composite };
 

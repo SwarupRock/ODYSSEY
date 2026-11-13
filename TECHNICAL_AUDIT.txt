@@ -614,3 +614,24 @@ W. TEAM INTEGRATION STAGE 4E.4 — CHAPTER III SHAKE OWNERSHIP
   passed before integration.
 - [POTENTIAL] Browser and physical Android gameplay validation remain pending.
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+X. LATEST MAIN INTEGRATION — CHAPTER III PRESERVATION
+--------------------------------------------------------------------------------
+- [VERIFIED] Latest fetched references are origin/main
+  ddea17a9495bf9df09e9a7e8c1377d7e371d33b7 and integration remote
+  a5b8de153decca73a6b8a9de6a4f5bb698fd6cc4. The normal merge has been
+  reconciled locally.
+- [VERIFIED] Latest main's Chapter III scene conflicts with approved integration
+  behavior: its roster includes Eurylochus, it omits the ingredient recipe/bench
+  rescue flow, and it routes attacks through shared generic combat. The local
+  approved Chapter III implementation is retained in root and Android.
+- [VERIFIED] Merge conflict reconciliation retains main's title-screen and
+  updater changes and the incoming v1.2.6/build 8 manifest values. Integration
+  touch/dialogue gating and Chapter VI controller routing are retained alongside
+  compatible main Chapter VI changes.
+- [VERIFIED] Root and Android JS syntax checks, actual-class fake-clock Chapter III
+  behavior tests, root/Android Chapter III and paired-source parity, and
+  `git diff --check` passed. No existing automated test suite was found.
+- [LIMITATION] Browser gameplay and physical Android runtime validation are not
+  performed by this integration source review.
+--------------------------------------------------------------------------------

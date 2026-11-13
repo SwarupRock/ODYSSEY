@@ -8,6 +8,7 @@
    ============================================================ */
 
 import { Gear } from "./gear.js";
+import { Dialogue } from "./ui.js";
 
 export const Stick = {
   built: false,
@@ -130,6 +131,12 @@ export const Stick = {
       if (!el) return;
       el.addEventListener("pointerdown", (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        // Dialogue taps advance text without firing an action.
+        if (Dialogue && Dialogue.active) {
+          Dialogue.advance();
+          return;
+        }
         if (!this.interactive || this.buttonPointers.has(id)) return;
         if (key === "bow" && !this.canUseBow()) return;
         this.buttonPointers.set(id, { pointerId: e.pointerId, key, scene: this.getActionTarget() });

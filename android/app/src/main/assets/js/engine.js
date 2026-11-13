@@ -263,38 +263,95 @@ export class Engine {
 }
 
 /* ============================================================
-   SAVE SYSTEM — localStorage, keyed progress
+   SAVE SYSTEM — localStorage + native Android persistence
    ============================================================ */
 const SAVE_KEY = "odyssey-save-v1";
+const BACKUP_KEY = "odyssey-save-backup";
 
 export const Save = {
   data: {
     unlocked: 1,        // highest chapter index available (1-based; 0 = prologue)
+    lastChapter: 1,     // chapter currently active / last played
     hubris: 0,          // accumulated hubris points
     completed: [],      // chapter indices finished
     best: {},           // per-chapter stats (e.g. perfect rhythm)
+    gear: { armor: 0, sword: 0, bow: 0, arrow: 0 },
   },
 
   load() {
+    let parsedLocal = null;
+    let parsedBackup = null;
+    let parsedNative = null;
+
     try {
       const raw = localStorage.getItem(SAVE_KEY);
-      if (raw) Object.assign(this.data, JSON.parse(raw));
-    } catch { /* private mode etc. */ }
+      if (raw) parsedLocal = JSON.parse(raw);
+    } catch {}
+
+    try {
+      const rawB = localStorage.getItem(BACKUP_KEY);
+      if (rawB) parsedBackup = JSON.parse(rawB);
+    } catch {}
+
+    try {
+      if (typeof window !== "undefined" && window.AndroidUpdater && window.AndroidUpdater.getSavedGame) {
+        const rawN = window.AndroidUpdater.getSavedGame();
+        if (rawN && rawN.length > 5) parsedNative = JSON.parse(rawN);
+      }
+    } catch {}
+
+    // Find the candidate with the most progress (highest unlocked or lastChapter)
+    const candidates = [parsedLocal, parsedBackup, parsedNative].filter(Boolean);
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => {
+        const scoreA = (a.unlocked || 1) * 10 + (a.lastChapter || 1) + (a.completed ? a.completed.length : 0);
+        const scoreB = (b.unlocked || 1) * 10 + (b.lastChapter || 1) + (b.completed ? b.completed.length : 0);
+        return scoreB - scoreA;
+      });
+      Object.assign(this.data, candidates[0]);
+    }
+
+    if (!this.data.lastChapter && this.data.unlocked) {
+      this.data.lastChapter = this.data.unlocked;
+    }
     return this.data;
   },
 
   save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch {}
+    try {
+      const json = JSON.stringify(this.data);
+      localStorage.setItem(SAVE_KEY, json);
+      localStorage.setItem(BACKUP_KEY, json);
+      if (typeof window !== "undefined" && window.AndroidUpdater && window.AndroidUpdater.setSavedGame) {
+        window.AndroidUpdater.setSavedGame(json);
+      }
+    } catch {}
+  },
+
+  recordChapter(idx) {
+    if (idx >= 0) {
+      this.data.lastChapter = idx;
+      this.data.unlocked = Math.max(this.data.unlocked || 1, idx);
+      this.save();
+    }
   },
 
   reset() {
-    this.data = { unlocked: 1, hubris: 0, completed: [], best: {} };
+    this.data = {
+      unlocked: 1,
+      lastChapter: 1,
+      hubris: 0,
+      completed: [],
+      best: {},
+      gear: { armor: 0, sword: 0, bow: 0, arrow: 0 }
+    };
     this.save();
   },
 
   completeChapter(idx, extra = {}) {
     if (!this.data.completed.includes(idx)) this.data.completed.push(idx);
-    this.data.unlocked = Math.max(this.data.unlocked, idx + 1);
+    this.data.unlocked = Math.max(this.data.unlocked || 1, idx + 1);
+    this.data.lastChapter = Math.min(6, idx + 1);
     this.data.best[idx] = { ...(this.data.best[idx] || {}), ...extra };
     this.save();
   },

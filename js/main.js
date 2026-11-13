@@ -76,6 +76,7 @@ export function returnHome() {
     currentScene = null;
   }
   currentIdx = -1;
+  window.__odysseyCurrentIdx = -1;
   engine.setScene(null);
   Dialogue.hide();
   Choices.hide();
@@ -97,11 +98,50 @@ export function returnHome() {
   showScreen("title");
 }
 
+function hasVoyageStarted() {
+  const d = Save.data || {};
+  return (d.completed && d.completed.length > 0) || (d.unlocked && d.unlocked > 1) || (d.lastChapter && d.lastChapter > 0) || !!d.introSeen;
+}
+
 function renderTitle() {
-  const has = Save.data.completed.length > 0 || Save.data.unlocked > 1;
-  $("btn-continue").classList.toggle("hidden", !has);
-  $("btn-continue").textContent = "Continue — " + chapterName(Math.min(Save.data.unlocked, 6));
+  const has = hasVoyageStarted();
+  const targetChapter = Math.min(Save.data.lastChapter !== undefined ? Save.data.lastChapter : (Save.data.unlocked || 1), 6);
+  const contBtn = $("btn-continue");
+  const newBtn = $("btn-new-game");
+  if (contBtn) {
+    contBtn.classList.toggle("hidden", !has);
+    contBtn.textContent = "Continue — " + chapterName(targetChapter);
+    if (has) {
+      contBtn.classList.add("btn-hero");
+    } else {
+      contBtn.classList.remove("btn-hero");
+    }
+  }
+  if (newBtn) {
+    if (has) {
+      newBtn.classList.remove("btn-hero");
+      newBtn.textContent = "📜 View History Video";
+      newBtn.title = "Watch the Fall of Troy cinematic and continue voyage";
+    } else {
+      newBtn.classList.add("btn-hero");
+      newBtn.textContent = "Begin the Voyage";
+      newBtn.title = "Begin Odysseus's journey home from Troy";
+    }
+  }
   Updater.render();
+}
+
+function playHistoryVideoAndContinue() {
+  showScreen(null); // hide title and screens
+  const target = Math.min(Save.data.lastChapter !== undefined ? Save.data.lastChapter : (Save.data.unlocked || 1), 6);
+  Audio.resume();
+
+  film = new FilmIntro(engine, Audio, () => {
+    film = null;
+    // Continue where it was left!
+    startChapter(target);
+  });
+  engine.setScene(film);
 }
 
 /* ---------------- the Armory — weapons & arrows, 3 tiers each ---------------- */
@@ -183,6 +223,8 @@ export async function startChapter(idx) {
   }
   if (idx < 0 || idx >= CHAPTERS.length) return;
   currentIdx = idx;
+  window.__odysseyCurrentIdx = idx;
+  Save.recordChapter(idx);
   showScreen(null); // hide all screens
   const btnHome = $("btn-home");
   if (btnHome) btnHome.classList.remove("hidden");
@@ -241,14 +283,21 @@ function bindUI() {
   $("btn-new-game").addEventListener("click", () => {
     if (Updater.isLocked()) return;
     Audio.resume();
-    Save.reset();
-    startChapter(0);
+    if (hasVoyageStarted()) {
+      // User already began the voyage: play history video and continue where they left off
+      playHistoryVideoAndContinue();
+    } else {
+      // First time starting voyage:
+      Save.recordChapter(0);
+      startChapter(0);
+    }
   });
 
   $("btn-continue").addEventListener("click", () => {
     if (Updater.isLocked()) return;
     Audio.resume();
-    startChapter(Math.min(Save.data.unlocked, 6));
+    const target = Math.min(Save.data.lastChapter !== undefined ? Save.data.lastChapter : (Save.data.unlocked || 1), 6);
+    startChapter(target);
   });
 
   $("btn-chapters").addEventListener("click", () => {
@@ -295,10 +344,20 @@ function bindUI() {
   // dialogue advance: tap the box or the canvas
   $("dialogue").addEventListener("pointerdown", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     Dialogue.advance();
   });
-  $("game-canvas").addEventListener("pointerdown", () => {
-    if (Dialogue.active) Dialogue.advance();
+  $("dialogue").addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    Dialogue.advance();
+  });
+  $("game-canvas").addEventListener("pointerdown", (e) => {
+    if (Dialogue.active) {
+      e.preventDefault();
+      e.stopPropagation();
+      Dialogue.advance();
+    }
   });
 
   /* ---------------- keyboard (WASD + arrows) ---------------- */
@@ -402,7 +461,14 @@ try {
   engine.resize();
   engine.start();
   bindUI();
-  showScreen("title");
+  // If returning directly from an in-app update, resume right into the active chapter
+  const resumeIdx = localStorage.getItem("odyssey-resume-after-update");
+  if (resumeIdx !== null && !isNaN(Number(resumeIdx)) && Number(resumeIdx) >= 0) {
+    localStorage.removeItem("odyssey-resume-after-update");
+    startChapter(Number(resumeIdx));
+  } else {
+    showScreen("title");
+  }
 
   // Development-only test scene launcher for Phase 2A
   window.odysseyTestMovement = async () => {

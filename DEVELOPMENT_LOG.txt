@@ -2363,3 +2363,82 @@ Next recommended action:
 Repeat complete Chapter III and repository validation, then continue the
 approved integration workflow.
 --------------------------------------------------
+
+--------------------------------------------------
+ENTRY 028 — LATEST MAIN INTEGRATION AND CHAPTER III PRESERVATION
+
+Date: 2026-11-13
+Status: COMPLETED
+Development phase: Team Integration — Stage 4E
+
+Objective:
+Merge the latest origin/main into integration/team-merge-2026-11-12, retain
+approved integration and Chapter III behavior, validate the combined source,
+and prepare the integration branch for a review PR.
+
+Work completed:
+- Fetched origin/main at ddea17a9495bf9df09e9a7e8c1377d7e371d33b7 and
+  origin/integration/team-merge-2026-11-12 at a5b8de153decca73a6b8a9de6a4f5bb698fd6cc4.
+- Started a normal merge. Resolved source conflicts semantically: combined
+  main's resume-after-update path with the integration movement test launcher;
+  retained integration touch gating and dialogue state reset while adding
+  main's dialogue tap advancement; retained integration Chapter VI movement
+  controller/action routing; selected main's unchanged 1.2.6 build 8 OTA
+  metadata.
+- Retained the integration Chapter III scenes because latest main's replacement
+  conflicts with approved crew roster, potion recipes/rescue order and control
+  isolation. The retained scene includes the latest scene-owned impact-shake
+  ownership fix. Root and Android copies remain byte-identical.
+- Retained main's title screen, updater, Chapter VI compatible changes, and
+  packaged APK as an incoming binary only; no APK build or install was run.
+
+Files modified:
+- Incoming main runtime, title-screen, updater, Chapter VI, and OTA metadata changes listed in the merge diff.
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+- None by this reconciliation; incoming main adds its PixelFX Burn Away
+  transition module.
+
+Files deleted:
+- None by this reconciliation.
+
+Technical decisions:
+- Do not accept latest main's Chapter III scene wholesale: that revision
+  reintroduces Eurylochus among transformed crew and removes approved recipe
+  rescue behavior and generic-combat isolation.
+- Keep Chapter VI movement on the integration shared controller and controls;
+  preserve main's other compatible Chapter VI code.
+- Use fetched main's existing version.json values (1.2.6/build 8); no version
+  bump or OTA regeneration is performed.
+
+Testing performed:
+- `node --check` across all JavaScript files in root and Android `js/` and
+  `scenes/` trees — passed.
+- Actual `Ch3Scene` methods with deterministic fake timers verified Clarifying
+  Draught priority, Moly Elixir fallback, carried recipe fallback, failed and
+  repeat rescue behavior, one rescue increment, finale timer deduplication and
+  cleanup, 60 ms successful-hit impact, 0.105-second hit-stop, duplicate
+  callback suppression, missed-strike suppression, 25 damage, and defeat
+  reward — passed.
+- Root/Android Chapter III parity and paired main/UI/Chapter VI/manifest parity
+  — passed.
+- `git diff --check` — passed after trimming only incoming trailing whitespace.
+- Repository test discovery — no existing automated test suite found.
+
+Test results:
+Static JavaScript syntax, focused Chapter III behavior, parity, and whitespace
+checks passed. Browser gameplay and physical Android runtime were not tested.
+
+Outstanding issues:
+- Browser gameplay and physical Android WebView testing remain for Android QA.
+- Review the opened PR before merging it.
+
+Platform validation:
+Browser and Android runtime testing not performed in this integration turn.
+
+Next recommended action:
+Review the integration-to-main PR. Do not merge it until review and Android QA
+are complete.
+--------------------------------------------------

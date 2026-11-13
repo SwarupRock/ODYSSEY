@@ -195,9 +195,17 @@ h1, h2, h3 { font-weight: 700; }
 #touch-controls { display: block; }
 #touch-controls.hidden { display: none !important; }
 
-/* while dialogue is open the controls step back (still tappable
-   for the stick, but visually out of the text's way) */
-body.dlg-open #touch-controls { opacity: 0.22; transition: opacity 0.3s ease; }
+/* while dialogue is open, the touch controls step back and touch buttons NEVER intercept taps */
+body.dlg-open #touch-controls {
+  opacity: 0.12;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease;
+}
+body.dlg-open #action-buttons,
+body.dlg-open #stick-zone,
+body.dlg-open .tbtn {
+  pointer-events: none !important;
+}
 #touch-controls { transition: opacity 0.3s ease; }
 
 /* persistent gear chip (armor · sword · bow) */
@@ -312,7 +320,9 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   position: fixed; left: 50%; bottom: 4%;
   transform: translateX(-50%);
   width: min(92vw, 620px);
-  z-index: 40;
+  z-index: 95;
+  pointer-events: auto !important;
+  cursor: pointer;
 }
 
 .dlg-frame {
@@ -400,54 +410,163 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   background: rgba(0,0,0,0.25); line-height: 1.5; }
 
 /* ============================================================
-   CHAPTER CARD
+   CHAPTER CARD & LOADING EXPERIENCE
    ============================================================ */
 .chapter-card {
   position: fixed; inset: 0; z-index: 60;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at 50% 45%, #31200f 0%, var(--terra-black) 70%);
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(201,151,63,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%, #28190d 0%, var(--terra-black) 78%);
+  backdrop-filter: blur(4px);
+  animation: ccBackdropFade 0.4s ease-out;
+}
+
+@keyframes ccBackdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .cc-frame {
   text-align: center;
-  padding: 34px 40px;
+  padding: 30px 42px;
+  max-width: min(92vw, 640px);
   border-top: 2px solid var(--bronze);
   border-bottom: 2px solid var(--bronze);
   position: relative;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.8), 0 0 28px rgba(201,151,63,0.14);
+  background: linear-gradient(180deg, rgba(34,20,10,0.85), rgba(18,10,4,0.92));
+  border-radius: 8px;
+  animation: ccFramePop 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+@keyframes ccFramePop {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 .cc-frame::before, .cc-frame::after {
   content: ""; position: absolute; left: 50%; transform: translateX(-50%);
-  width: 60%; height: 1px; background: rgba(201,151,63,0.4);
+  width: 70%; height: 1px; background: rgba(201,151,63,0.5);
 }
 .cc-frame::before { top: 6px; } .cc-frame::after { bottom: 6px; }
+
+.cc-top-emblem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 6px;
+  color: var(--bronze-bright);
+}
+.cc-laurel {
+  font-size: 16px;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 6px rgba(201,151,63,0.4));
+}
+.cc-seal {
+  font-size: 20px;
+  filter: drop-shadow(0 0 10px rgba(230,192,105,0.7));
+  animation: ccSealPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes ccSealPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(230,192,105,0.6)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 16px rgba(244,216,150,0.9)); }
+}
+
+.cc-ship-wrap {
+  margin: 2px auto 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  filter: drop-shadow(0 4px 14px rgba(201,151,63,0.4));
+  animation: ccShipBob 3.4s ease-in-out infinite;
+}
+
+@keyframes ccShipBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(1.4deg); }
+}
+
+.cc-oars {
+  transform-origin: 80px 56px;
+  animation: ccOarsRow 2.2s ease-in-out infinite;
+}
+
+@keyframes ccOarsRow {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(5deg); }
+}
 
 .cc-meander {
   height: 10px;
   margin: 8px auto;
-  width: min(78vw, 320px);
-  opacity: 0.75;
+  width: min(78vw, 360px);
+  opacity: 0.85;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M0 9 H9 V1 H2 V6 H6 V4' fill='none' stroke='%23c9973f' stroke-width='1.4'/%3E%3C/svg%3E");
   background-repeat: repeat-x;
   background-position: center;
+  filter: drop-shadow(0 0 4px rgba(201,151,63,0.3));
 }
 
 .cc-kicker {
   font-family: var(--font-title);
-  font-size: 13px; letter-spacing: 0.35em; text-transform: uppercase;
+  font-size: 13px; letter-spacing: 0.38em; text-transform: uppercase;
   color: var(--bone-dim);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .cc-title {
   font-family: var(--font-title);
   font-size: clamp(26px, 6.5vmin, 44px);
   font-weight: 700; color: var(--bone);
+  text-shadow: 0 0 16px rgba(230,192,105,0.4);
+  letter-spacing: 0.04em;
   margin: 4px 0 6px;
 }
 
 .cc-sub {
   font-size: 14px; font-style: italic; color: var(--bone-dim);
   margin-bottom: 4px;
+}
+
+.cc-quote {
+  font-family: var(--font-body);
+  font-size: clamp(12px, 2.7vmin, 14.5px);
+  font-style: italic;
+  color: rgba(236,223,195,0.85);
+  max-width: min(84vw, 500px);
+  margin: 10px auto 8px;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+}
+
+.cc-load-track {
+  width: min(72vw, 240px);
+  height: 3px;
+  background: rgba(30,18,8,0.85);
+  border: 1px solid rgba(201,151,63,0.35);
+  border-radius: 3px;
+  margin: 10px auto 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cc-load-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #8c5a22, #e6c069, #fff, #e6c069);
+  background-size: 200% 100%;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(230,192,105,0.8);
+  animation: ccShimmer 1.8s linear infinite;
+  transition: width 2.4s cubic-bezier(0.12, 0.7, 0.2, 1);
+}
+
+@keyframes ccShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
 
 /* ============================================================

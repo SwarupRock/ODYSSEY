@@ -687,7 +687,8 @@ export class Ch6Scene extends ChapterScene {
     // player
     if (this.phase !== "end-pan") {
       const heroPose = Cinematic.getHeroPose() || (this.guardT > 0 ? { shield: true } : null);
-      drawOdysseus(ctx, this.playerX * W, gy, 1.08, 1, this.t, true, true, Gear.kit(), heroPose);
+      const isMoving = Math.abs(this.engine.axisX()) > 0.08 || (this.dash && this.dash > 0);
+      drawOdysseus(ctx, this.playerX * W, gy, 1.08, this.facing || 1, this.t, true, isMoving, Gear.kit(), heroPose);
       drawNameTag(ctx, this.playerX * W, gy - 86 + (heroPose ? (heroPose.dy || 0) : 0), "ODYSSEUS");
       // bow arm while loosing, shield of the equipped armor at his side
       if ((this.phase === "volley" || this.phase === "wave" || this.phase === "duel") && this.bowCd > 0.18) {
