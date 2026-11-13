@@ -2442,3 +2442,74 @@ Next recommended action:
 Review the integration-to-main PR. Do not merge it until review and Android QA
 are complete.
 --------------------------------------------------
+
+--------------------------------------------------
+ENTRY 029 — FIX CHAPTER I AND VI DUPLICATE MOVEMENT
+
+Date: 2026-11-13
+Status: COMPLETED — READY FOR REVIEW
+Development phase: Team Integration — PR #1 review corrections
+
+Objective:
+Fix duplicate controller and legacy movement application in the Chapter VI
+volley, and remove Chapter I's immediate displacement on top of its timed
+MovementController dodge.
+
+Work completed:
+- Removed Chapter VI volley's second direct horizontal movement block. The
+  controller now applies keyboard or hold movement once per frame, including
+  the existing run multiplier, hit-stop flag and movement boundaries.
+- Removed Chapter I's immediate 0.19-screen-width position adjustment. The
+  existing 0.20-screen-width MovementController dodge now supplies the sole
+  timed displacement; visuals, sound, cooldown, invulnerability and arena
+  clamping remain in their existing paths.
+- Synchronized both Android scene copies with root.
+- Added deterministic tests using the real MovementController and actual
+  Chapter I and Chapter VI scene methods.
+
+Files modified:
+- scenes/ch1_cyclops.js
+- android/app/src/main/assets/scenes/ch1_cyclops.js
+- scenes/ch6_ithaca.js
+- android/app/src/main/assets/scenes/ch6_ithaca.js
+- tests/movement-regressions.test.mjs
+- DEVELOPMENT_LOG.txt
+- TECHNICAL_AUDIT.txt
+
+Files created:
+- tests/movement-regressions.test.mjs
+
+Files deleted:
+None.
+
+Technical decisions:
+- Keep Chapter I's pixel-space dodge distance at 0.20 × engine.W and let
+  updateHorizontal distribute it across the configured 0.35-second dodge.
+  Existing update-time boundaries clamp the path to the boss arena.
+- Keep Chapter VI's normalized controller as the sole horizontal movement
+  owner in volley, wave and duel phases. No controller or tuning values changed.
+
+Testing performed:
+- `node --check` across root and Android JavaScript runtime and scene files,
+  and the new `.mjs` test — passed.
+- `node --experimental-default-type=module --test tests/*.test.mjs` — four
+  deterministic tests passed: Chapter VI one movement update and 1.6× run
+  once; Chapter VI dodge/hit-stop/boundary behavior; Chapter I 200 px timed
+  dodge, cooldown and invulnerability; and Chapter I boss-arena boundary.
+- Root/Android Chapter I and Chapter VI byte-parity checks — passed.
+- `git diff --check` — passed.
+
+Test results:
+All four focused tests, syntax checks, parity checks and whitespace checks
+passed. No browser or physical Android runtime test was performed.
+
+Outstanding issues:
+- None identified in the source-level regression tests.
+- Browser and Android runtime movement validation remain for QA.
+
+Platform validation:
+Browser: not tested. Android WebView: not tested.
+
+Next recommended action:
+Review the focused fix commit and updated PR #1 head before merge.
+--------------------------------------------------

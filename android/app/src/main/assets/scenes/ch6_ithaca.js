@@ -103,11 +103,6 @@ export class Ch6Scene extends ChapterScene {
   tickVolley(dt, timing = {}) {
     const W = this.engine.W;
     this.updatePlayerMovement(dt, timing, 0.3, 0.08, 0.72);
-    const kbd = this.engine.axisX();
-    const shiftRun = this.engine.keyDown("Shift");
-    const speedMultiplier = shiftRun ? 1.6 : 1;
-    this.playerX += ((this._holdDir || 0) + kbd) * dt * 0.3 * speedMultiplier;
-    this.playerX = Math.max(0.08, Math.min(0.72, this.playerX));
 
     this.volleySurvive -= dt;
     if (this.volleySurvive <= 0) {

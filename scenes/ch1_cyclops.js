@@ -533,9 +533,13 @@ export class Ch1Scene extends ChapterScene {
     if (!f || f.phase === "done" || !this.controller.dodge(dir)) return false;
     Stick.cooldown("btn-dash", 380);
     Cinematic.performMove("dash", this.playerX, this.groundY(), dir, { engine: this.engine });
-    this.playerX = clamp(this.playerX + dir * this.engine.W * 0.19, this.engine.W * 0.06, f.bossX - 42);
     this.audio.sfx("footstep");
-    this.burst(this.playerX, this.groundY() - 30, PAL.bone, 40, 3);
+    const dodgeEndX = clamp(
+      this.playerX + this.controller.dodgeDirection * this.controller.dodgeDistance,
+      this.controller.minX,
+      this.controller.maxX
+    );
+    this.burst(dodgeEndX, this.groundY() - 30, PAL.bone, 40, 3);
     return true;
   }
 

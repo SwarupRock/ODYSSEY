@@ -635,3 +635,29 @@ X. LATEST MAIN INTEGRATION — CHAPTER III PRESERVATION
 - [LIMITATION] Browser gameplay and physical Android runtime validation are not
   performed by this integration source review.
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Y. PR #1 REVIEW — CHAPTER I AND VI DUPLICATE MOVEMENT FIXES
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter VI `tickVolley()` previously called
+  `updatePlayerMovement()` and then applied the same `_holdDir + axisX` input
+  again, with another 1.6 run multiplier. The duplicate direct path is removed;
+  volley, wave and duel movement now each use the existing controller once.
+- [VERIFIED] Chapter VI controller update continues to receive `hitStop`, uses
+  normalized coordinates and the phase-specific boundaries. Controller run
+  applies the configured 1.6 multiplier once. Dodge remains controller-owned.
+- [VERIFIED] Chapter I `dodge()` previously started a 0.20 × `engine.W` timed
+  controller dodge and immediately added a second 0.19 × `engine.W` jump.
+  The direct adjustment is removed. The controller supplies the full timed
+  displacement, while `tickFight()` continues to clamp movement between 6% of
+  screen width and the boss's near boundary.
+- [VERIFIED] Four deterministic tests execute the actual MovementController,
+  `Ch6Scene.tickVolley()`, `Ch1Scene.dodge()` and `Ch1Scene.tickFight()`. They
+  cover per-frame movement count, one-time run scaling, hit-stop freeze during
+  dodge, dodge distance over time, cooldown, invulnerability and arena clamp.
+  All four passed.
+- [VERIFIED] Root/Android Chapter I and VI pairs are byte-identical. All root
+  and Android JavaScript syntax checks, focused tests and `git diff --check`
+  passed.
+- [LIMITATION] Tests are deterministic source-level scene/controller tests;
+  browser and physical Android WebView runtime behavior was not exercised.
+--------------------------------------------------------------------------------
