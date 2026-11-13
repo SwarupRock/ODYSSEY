@@ -185,6 +185,28 @@ export class ChapterScene {
 
   /* ---------------- default input plumbing ---------------- */
 
+  onPointerCancel() {
+    this._holdDir = 0;
+    this._holdSide = 0;
+    this.holdDir = 0;
+    this.hold = 0;
+    if (this.onInputReset) this.onInputReset();
+    else if (this.onPointerUp) this.onPointerUp(this.engine.pointer.x, this.engine.pointer.y);
+  }
+
+  onInputReset() {
+    this._holdDir = 0;
+    this._holdSide = 0;
+    this.holdDir = 0;
+    this.hold = 0;
+    this.controller?.resetDodge?.();
+  }
+
+  /** Shared read-only dodge protection query for later chapter integration. */
+  isInvulnerable() {
+    return Boolean(this.controller?.isInvulnerable?.());
+  }
+
   onTap(x, y) {
     if (this._tapWanted) {
       const cb = this._tapWanted;
@@ -195,7 +217,7 @@ export class ChapterScene {
     this.handleTap && this.handleTap(x, y);
   }
 
-  update(dt) {
+  update(dt, timing = {}) {
     this.t += dt;
     if (!this.ready) return;
     // bursts
@@ -204,7 +226,7 @@ export class ChapterScene {
       b.a -= dt * 1.6;
     }
     this.bursts = this.bursts.filter((b) => b.a > 0);
-    this.tick && this.tick(dt);
+    this.tick && this.tick(dt, timing);
   }
 
   /** engine-facing draw wrapper — hero rim light tracks the player */

@@ -176,6 +176,9 @@ h1, h2, h3 { font-weight: 700; }
   color: #ffd27a;
   text-shadow: 0 0 10px rgba(255,190,90,0.4);
 }
+#btn-dodge {
+  color: var(--bronze-bright);
+}
 .tbtn.cd {
   opacity: 0.45;
   filter: grayscale(0.35);

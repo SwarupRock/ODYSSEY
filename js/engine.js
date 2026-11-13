@@ -6,6 +6,7 @@
 
 import { Fx } from "./fx.js";
 import { Cinematic } from "./combat.js";
+import { Dialogue } from "./ui.js";
 
 export class Engine {
   constructor(canvas) {
@@ -55,12 +56,13 @@ export class Engine {
     const step = (t) => {
       let dt = Math.min((t - this.lastT) / 1000, 0.1);
       this.lastT = t;
+      const hitStopActive = this._stop > 0;
       // hit-stop: heavy blows freeze the world for a few frames (combat feel)
-      if (this._stop > 0) {
+      if (hitStopActive) {
         this._stop -= dt;
         dt = dt * 0.08; // world crawls; FX still read
       }
-      if (this.scene && this.scene.update) this.scene.update(dt);
+      if (this.scene && this.scene.update) this.scene.update(dt, { hitStop: hitStopActive });
       Fx.update(dt);
       Cinematic.update(dt);
       const ctx = this.ctx;
@@ -96,11 +98,28 @@ export class Engine {
   }
 
   setScene(scene) {
+    if (this.scene && this.scene !== scene) {
+      if (this.scene.onPointerCancel) this.scene.onPointerCancel();
+      else if (this.scene.onPointerUp) this.scene.onPointerUp(this.pointer.x, this.pointer.y);
+      if (this.scene.onInputReset) this.scene.onInputReset();
+    }
     this.scene = scene;
+    this.resetInput();
     this.tapHandlers = [];
     this.camera.shake = 0;
     this._stop = 0;
     Cinematic.clear();
+  }
+
+  /** reset all input states across pointer, dragging, keys, and joystick axes */
+  resetInput() {
+    this.pointer.down = false;
+    this.pointer.id = null;
+    this.dragging = false;
+    this.keys.clear();
+    this.stickX = 0;
+    this.stickY = 0;
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("odyssey-input-reset"));
   }
 
   /** hit-stop — freeze frames on heavy hits (seconds, ~0.09 typical) */
@@ -134,6 +153,9 @@ export class Engine {
 
     c.addEventListener("pointerdown", (e) => {
       e.preventDefault();
+      // When dialogue is active, canvas taps advance dialogue via main.js listener;
+      // suppress gameplay pointer-down and dragging on the scene
+      if (Dialogue && Dialogue.active) return;
       const p = pos(e);
       this.pointer = { ...p, down: true, id: e.pointerId };
       this.dragging = false;
@@ -186,7 +208,23 @@ export class Engine {
     };
 
     c.addEventListener("pointerup", up);
-    c.addEventListener("pointercancel", () => { this.pointer.down = false; this.dragging = false; });
+    const cancel = (e) => {
+      if (e && this.pointer.id !== null && e.pointerId !== undefined && e.pointerId !== this.pointer.id) return;
+      this.pointer.down = false;
+      this.pointer.id = null;
+      this.dragging = false;
+      if (this.scene) {
+        if (this.scene.onPointerCancel) this.scene.onPointerCancel();
+        else if (this.scene.onPointerUp) this.scene.onPointerUp(this.pointer.x, this.pointer.y);
+      }
+    };
+    c.addEventListener("pointercancel", cancel);
+    c.addEventListener("pointerleave", (e) => {
+      // pointerleave on primary active pointer releases drag/hold gracefully
+      if (this.pointer.down && (e.pointerType === "mouse" || e.pointerId === this.pointer.id)) {
+        cancel(e);
+      }
+    });
 
     window.addEventListener("keydown", (e) => {
       this.keys.add(e.key);
@@ -197,6 +235,10 @@ export class Engine {
     window.addEventListener("keyup", (e) => {
       this.keys.delete(e.key);
       if (this.scene && this.scene.onKeyUp) this.scene.onKeyUp(e.key.toLowerCase());
+    });
+    window.addEventListener("blur", () => {
+      this.resetInput();
+      if (this.scene && this.scene.onInputReset) this.scene.onInputReset();
     });
 
     window.addEventListener("resize", () => this.resize());

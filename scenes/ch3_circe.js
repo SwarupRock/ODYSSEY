@@ -1,8 +1,8 @@
 /* ============================================================
    ODYSSEY — Chapter 3: Circe's Island (Aiaia)
    Exploration: walk the enchanted glade, harvest Hermes' sacred
-   Moly blossoms, drive off guardian beasts with 6DoF-inspired sword
-   combat, transmute the Celestial Moly Elixir at the Palace Cauldron,
+   Moly blossoms, drive off guardian beasts with contextual sword strikes,
+   transmute the Celestial Moly Elixir at the Palace Cauldron,
    and shatter Circe's swine hexes to restore the crew!
    ============================================================ */
 
@@ -10,11 +10,14 @@ import { PAL, drawSky, drawGround, drawRidge, drawTorch, drawOdysseus, drawCirce
 import { ChapterScene, sleep } from "../js/scenefw.js";
 import { Gear } from "../js/gear.js";
 import { HUD, Mech } from "../js/ui.js";
-import { Cinematic } from "../js/combat.js";
 import { PixelVFX } from "../js/pixelvfx.js";
 import { Stick } from "../js/stick.js";
 
-const PIG_NAMES = ["Polites", "Eurylochus", "Perimedes"];
+const ING_NAMES = ["herb", "mushroom", "flower", "coral", "honey"];
+const ING_COLORS = ["#7a7f46", "#b0653a", "#c9a13f", "#5f8a8b", "#d19a3f"];
+const ING_GLYPHS = ["H", "M", "F", "C", "Y"];
+const RECIPES = { "0-1": "Clarifying Draught — cures muddled minds", "1-2": "Warm Honey Tea — restores weak bodies", "0-3": "Salt-Bright Tonic — lifts heavy hearts" };
+const PIG_NAMES = ["Polites", "Elpenor", "Perimedes"];
 const BEAST_NAMES = ["wolf", "lion", "lynx"];
 
 export class Ch3Scene extends ChapterScene {
@@ -26,11 +29,19 @@ export class Ch3Scene extends ChapterScene {
     this.facing = 1;
     this.hp = 4;
     this.pigsCured = 0;
+    this.potion = null;
+    this.inventory = [0, 0, 0, 0, 0];
     this.molyEssence = 0;
     this.hasMolyDraught = false;
     this.elixirCharges = 0;
     this.cauldronActive = false;
     this._cauldronPulse = 0;
+    this._finaleStarted = false;
+    this._finaleTimer = null;
+    this._sceneActive = true;
+    this._swordStrike = null;
+    this._pendingStrikeImpacts = new Set();
+    this._impactShake = null;
 
     // The three bewitched crewmen across the island
     this.pigs = [
@@ -47,6 +58,12 @@ export class Ch3Scene extends ChapterScene {
       { at: 0.72, taken: false },
       { at: 0.90, taken: false },
     ];
+    this.ings = [
+      { at: 0.20, ing: 0, taken: false }, { at: 0.40, ing: 2, taken: false },
+      { at: 0.52, ing: 3, taken: false }, { at: 0.72, ing: 4, taken: false },
+      { at: 0.82, ing: 2, taken: false }, { at: 0.30, ing: 0, taken: false },
+      { at: 0.60, ing: 1, taken: false },
+    ];
 
     // Circe's guardian beasts roaming the island
     this.beasts = [
@@ -55,24 +72,46 @@ export class Ch3Scene extends ChapterScene {
       { at: 0.93, alive: true, state: "lurk", t: 2.2, hp: 40 },
     ];
 
+    this.benchOpen = false;
+    this.selected = [];
     HUD.health(4);
     Mech.clear();
-    Stick.setCombatMode(true);
+    Stick.setCombatMode(false);
+    Stick.setDodgeVisible(false);
   }
 
   cleanup() {
+    this._sceneActive = false;
+    if (this._finaleTimer !== null) clearTimeout(this._finaleTimer);
+    this._finaleTimer = null;
+    for (const impact of this._pendingStrikeImpacts || []) clearTimeout(impact.timer);
+    this._pendingStrikeImpacts?.clear();
+    if (this._impactShake) {
+      if (this.engine.scene === this && this.engine.camera.shake <= this._impactShake.lastApplied) {
+        this.engine.camera.shake = this._impactShake.baseline;
+      }
+      this._impactShake = null;
+    }
     Stick.setCombatMode(false);
+    Stick.setDodgeVisible(false);
+    if (this.selected?.length) for (const i of this.selected) this.inventory[i]++;
+    this.selected = [];
+    this.benchOpen = false;
+    Mech.hide();
     const b = document.getElementById("cauldron-brew-btn");
     if (b) b.remove();
+    const bench = document.getElementById("bench-open");
+    if (bench) bench.remove();
   }
 
   async intro() {
     await this.say(
       { who: "NARRATOR", text: "Aiaia. A soft emerald island wrapped in fragrant cypress and bewitched mist." },
-      { who: "NARRATOR", text: "Circe's palace stands in the clearing, guarded by enchanted beasts. Inside her pen, three of your comrades grunt in swine hide." },
-      { who: "ODYSSEUS", text: "Eurylochus... Polites... they are trapped under her dark transmutation hex." },
-      { who: "NARRATOR", text: "Hermes appeared with the cure: 'Uproot the milk-white Moly blossom, Odysseus. Infuse it at her bronze cauldron, and strike with drawn blade!'" },
-      { who: "ODYSSEUS", text: "I have my sword drawn and Hermes' gift. Circe will yield my men." }
+      { who: "NARRATOR", text: "Circe's marble palace stands in the clearing, guarded by enchanted beasts. Inside her pen, three comrades grunt in swine hide." },
+      { who: "EURYLOCHUS", text: "I would not enter the hall. Circe changed the others into swine — I ran to warn you." },
+      { who: "ODYSSEUS", text: "You did right to return. We will bring Polites, Elpenor and Perimedes back." },
+      { who: "NARRATOR", text: "Hermes left black-rooted moly to ward off witchcraft. The island's ingredients may also yield a counter-potion." },
+      { who: "ODYSSEUS", text: "Then I gather what the island offers and out-brew the witch. For my men." }
     );
     this.updateObjective();
   }
@@ -83,28 +122,39 @@ export class Ch3Scene extends ChapterScene {
       this.objective("All crewmen stand upright — approach the Palace steps; Circe awaits!");
       return;
     }
-    if (this.hasMolyDraught && this.elixirCharges > 0) {
+    if (this.potion === "0-1") {
+      this.objective("<b>Clarifying Draught ready</b> — rescue a crewman; this draught takes priority · <b>" + left + "</b> left");
+    } else if (this.potion) {
+      this.objective("A brewed potion is ready for rescue; Moly Elixir is used first when no Clarifying Draught is carried · <b>" + left + "</b> left");
+    } else if (this.hasMolyDraught && this.elixirCharges > 0) {
       this.objective(
-        "<b>Moly Elixir Infused (" + this.elixirCharges + " charges)</b> — Rush to the bewitched crew and press <span class=\"kbd\">SPACE</span> / Attack to cleanse them! · <b>" + left + "</b> left"
+        "<b>Moly Elixir Infused (" + this.elixirCharges + " charges)</b> — Rescue a bewitched crewman with <span class=\"kbd\">SPACE</span>/<span class=\"kbd\">ENTER</span> or ACT · <b>" + left + "</b> left"
       );
     } else if (this.molyEssence >= 2) {
       this.objective(
-        "<b>Sacred Moly Gathered</b> — Step to the Palace Cauldron (center) and press <span class=\"kbd\">SPACE</span> to brew Hermes' Elixir!"
+        "<b>Sacred Moly Gathered</b> — At the Palace Cauldron, use <b>TRANSMUTE MOLY ELIXIR</b>."
       );
     } else {
       this.objective(
-        "Gather milk-white <b>Moly Blossoms</b> along the glade or fight beasts · Approach the Cauldron to brew Hermes' Dispel · <b>" + left + "</b> swine remaining"
+        "Gather ingredients and milk-white <b>Moly Blossoms</b>; brew at the palace bench or Cauldron · <b>" + left + "</b> transformed crew remaining"
       );
     }
   }
 
   onPointerDown(x) {
+    if (this.benchOpen) return;
     this._holdDir = x < this.engine.W / 2 ? -1 : 1;
   }
 
   onPointerUp() { this._holdDir = 0; }
 
   tick(dt) {
+    this.updateTimedImpactShake(dt);
+    if (this._swordStrike) {
+      this._swordStrike.elapsed += dt;
+      if (this._swordStrike.elapsed >= this._swordStrike.duration) this._swordStrike = null;
+    }
+    if (this.benchOpen) return;
     const W = this.engine.W;
     this._cauldronPulse += dt;
 
@@ -129,6 +179,17 @@ export class Ch3Scene extends ChapterScene {
         PixelVFX.spawn("pickups/collect-burst", mx, my, { palette: "moly", scale: 1.0 });
         PixelVFX.spawn("holy/blessing", mx, my, { palette: "apollo", scale: 0.8 });
         this.updateObjective();
+      }
+    }
+
+    for (const ing of this.ings) {
+      if (!ing.taken && Math.abs(ing.at - this.playerX) < 0.025) {
+        ing.taken = true;
+        this.inventory[ing.ing]++;
+        this.audio.sfx("pickup");
+        this.note("Gathered " + ING_NAMES[ing.ing] + " (" + ING_GLYPHS[ing.ing] + ")");
+        this.burst(ing.at * W, this.groundY() - 30, ING_COLORS[ing.ing], 40, 3);
+        PixelVFX.spawn("pickups/collect-burst", ing.at * W, this.groundY() - 30, { palette: ing.ing === 4 || ing.ing === 2 ? "apollo" : "moly", scale: 0.85 });
       }
     }
 
@@ -159,7 +220,7 @@ export class Ch3Scene extends ChapterScene {
             if (this.hitPlayer(b.at * W, this.groundY() - 40) === "hit") {
               this.hp--; HUD.health(this.hp);
               this.audio.sfx("crash");
-              this.engine.shake(1.2);
+              this.sceneShake(1.2);
               if (this.hp <= 0) this.knocked();
             }
           }
@@ -169,46 +230,96 @@ export class Ch3Scene extends ChapterScene {
 
     // Proximity to Cauldron (at 0.47)
     const nearCauldron = Math.abs(this.playerX - 0.47) < 0.06;
-    const btn = document.getElementById("cauldron-brew-btn");
-    if (btn) btn.style.display = nearCauldron ? "" : "none";
+    const cauldron = document.getElementById("cauldron-brew-btn");
+    if (cauldron) cauldron.style.display = nearCauldron ? "" : "none";
+    const bench = document.getElementById("bench-open");
+    if (bench) bench.style.display = nearCauldron ? "" : "none";
   }
 
   handleTap() {
-    const W = this.engine.W, gy = this.groundY();
-
-    // 1. Check if near a swined crewman -> Cleanse with Moly
+    if (this.benchOpen) return;
     const pigIdx = this.pigs.findIndex((p) => !p.cured && Math.abs(p.at - this.playerX) < 0.06);
-    if (pigIdx >= 0) {
-      this.curePig(pigIdx);
-      return;
-    }
-
-    // 2. Check if near Cauldron -> Transmute Moly Elixir
-    if (Math.abs(this.playerX - 0.47) < 0.06) {
-      this.transmuteCauldron();
-      return;
-    }
-
-    // 3. Melee strike against beasts in range
-    this.executeSwordStrike("slash");
+    if (pigIdx >= 0) return this.curePig(pigIdx);
+    if (Math.abs(this.playerX - 0.47) < 0.06) return this.openBench();
+    const beast = this.beasts.find((b) => b.alive && Math.abs(b.at - this.playerX) < 0.11);
+    if (beast) return this.executeSwordStrike("slash");
   }
 
   onActionKey(k) {
-    if (k === "u" || k === "k" || k === "l" || k === "f" || k === "shift") {
-      const map = { u: "uppercut", k: "spin", l: "spear", f: "block", shift: "dash" };
-      this.executeSwordStrike(map[k]);
+    if (this.benchOpen) {
+      if (k === " " || k === "enter" || k === "escape") this.closeBench();
       return;
     }
+    if (k === " " || k === "enter") this.handleTap();
+  }
 
-    if (k === " " || k === "enter" || k === "j") {
-      this.handleTap();
+  openBench() {
+    if (this.benchOpen) return;
+    this.benchOpen = true;
+    this.selected = [];
+    this.renderBench();
+  }
+
+  renderBench() {
+    Mech.set(`<div class="bench"><div class="bench-title">Palace Brew Bench</div>
+      <div class="bench-hint">Pair two ingredients. H + M makes the <b>Clarifying Draught</b>. Space closes.</div>
+      <div class="bench-slots"><div class="ing-slot" id="slot0">?</div><div class="ing-slot" id="slot1">?</div></div>
+      <div class="bench-row"><div class="bench-ings">${this.inventory.map((n,i)=>`<button class="bench-ing ${n ? "" : "used"}" data-i="${i}">${ING_GLYPHS[i]}<small>x${n}</small></button>`).join("")}</div>
+      <button class="btn-stone bench-brew" id="bench-brew">Brew</button></div><button class="btn-stone bench-close" id="bench-close">Close</button></div>`);
+    Mech.show();
+    document.querySelectorAll(".bench-ing").forEach((el) => el.addEventListener("click", () => {
+      const i = +el.dataset.i;
+      if (this.inventory[i] > 0 && this.selected.length < 2) { this.selected.push(i); this.inventory[i]--; this.audio.sfx("tap"); this.renderBench(); }
+    }));
+    document.getElementById("bench-brew").addEventListener("click", () => this.tryBrew());
+    document.getElementById("bench-close").addEventListener("click", () => this.closeBench());
+    for (let s=0; s<2; s++) if (this.selected[s] !== undefined) {
+      const el=document.getElementById("slot"+s); el.textContent=ING_GLYPHS[this.selected[s]]; el.classList.add("filled");
     }
+  }
+
+  tryBrew() {
+    if (this.potion) { this.note("Use the carried potion before brewing another."); return; }
+    if (this.selected.length !== 2) { this.note("Pick two ingredients."); return; }
+    const key=[...this.selected].sort().join("-");
+    if (!RECIPES[key]) {
+      this.audio.sfx("error"); this.note("The brew turns grey. Wrong pairing; ingredients restored.");
+      PixelVFX.spawn("explosions/smoke-bomb", 0.47*this.engine.W, this.groundY()-10, {palette:"circe",scale:0.75});
+      for (const i of this.selected) this.inventory[i]++;
+      this.selected=[]; this.renderBench(); return;
+    }
+    this.potion=key;
+    this.selected=[]; // successful brewing consumes the selected ingredients
+    this.audio.sfx("potion");
+    PixelVFX.spawn("arcane/magic-circle-cast", 0.47*this.engine.W, this.groundY(), {palette:"moly",scale:0.9});
+    this.note("Brewed: " + RECIPES[key]);
+    this.updateObjective();
+    this.closeBench();
+  }
+
+  closeBench() {
+    for (const i of this.selected) this.inventory[i]++;
+    this.selected=[]; this.benchOpen=false; Mech.hide();
   }
 
   /** Transmutes Hermes' Holy Moly Elixir at Circe's Cauldron with sensational PixelFX */
   transmuteCauldron() {
     const W = this.engine.W, gy = this.groundY();
     const cx = 0.47 * W, cy = gy - 36;
+
+    if (this.benchOpen) return;
+    if (this.pigs.some((p) => !p.cured && Math.abs(p.at - this.playerX) < 0.06)) {
+      this.note("Rescue the nearby crewman first.");
+      return;
+    }
+    if (Math.abs(this.playerX - 0.47) >= 0.06) return;
+
+    if (this.molyEssence < 2) {
+      this.note("The Cauldron needs two Moly essences. Gather blossoms or drive off beasts.");
+      this.audio.sfx("error");
+      return;
+    }
+    this.molyEssence -= 2;
 
     this.hasMolyDraught = true;
     this.elixirCharges = 3;
@@ -217,7 +328,7 @@ export class Ch3Scene extends ChapterScene {
 
     this.audio.sfx("potion");
     this.audio.sfx("reveal");
-    this.engine.shake(0.6);
+    this.sceneShake(0.6);
 
     // Dazzling eruption of arcane & holy magic
     PixelVFX.spawn("arcane/magic-circle-cast", cx, gy - 8, { palette: "circe", scale: 1.25 });
@@ -234,24 +345,28 @@ export class Ch3Scene extends ChapterScene {
   /** Cleanses a pig and restores the human Greek crewman */
   curePig(pigIdx) {
     const pig = this.pigs[pigIdx];
+    if (!pig || pig.cured || this._finaleStarted) return false;
     const W = this.engine.W, gy = this.groundY();
     const px = pig.at * W;
-
-    if (!this.hasMolyDraught || this.elixirCharges <= 0) {
-      this.note("Circe's hex is too dark! Gather Moly & infuse your blade at the Cauldron (center) first.");
+    const useClarifying = this.potion === "0-1";
+    const useMoly = !useClarifying && this.hasMolyDraught && this.elixirCharges > 0;
+    const useExistingPotion = !useClarifying && !useMoly && !!this.potion;
+    if (!useClarifying && !useMoly && !useExistingPotion) {
+      this.note("Circe's hex holds. Brew a Clarifying Draught or infuse Moly at the Cauldron.");
       PixelVFX.spawn("arcane/rune-circle", px, gy - 8, { palette: "circe", scale: 0.8 });
       this.audio.sfx("error");
-      return;
+      return false;
     }
 
     pig.cured = true;
     this.pigsCured++;
-    this.elixirCharges = Math.max(0, this.elixirCharges - 1);
+    if (useClarifying || useExistingPotion) this.potion = null;
+    else this.elixirCharges--;
 
     this.audio.sfx("potion");
     this.audio.sfx("sword");
     this.audio.sfx("reveal");
-    this.engine.shake(0.8);
+    this.sceneShake(0.8);
 
     // Eruption of divine healing and transmutation reversal
     PixelVFX.spawn("holy/heal", px, gy, { palette: "moly", scale: 1.25 });
@@ -261,53 +376,110 @@ export class Ch3Scene extends ChapterScene {
     PixelVFX.spawn("impacts/parry", px, gy - 32, { palette: "apollo", scale: 1.0 });
     this.burst(px, gy - 26, PAL.gold, 60, 4.8);
 
-    const dialogLines = [
-      "Polites stands upright! 'Odysseus! My senses return — I can speak!'",
-      "Eurylochus weeps and clutches his heart! 'The witch's hex is broken!'",
-      "Perimedes raises his hand in salute! 'Captain! We are men of Ithaca once more!'"
-    ];
-    this.note(dialogLines[pigIdx]);
+    this.note(PIG_NAMES[pigIdx] + " stands upright! 'The witch's hex is broken!' (" + this.pigsCured + "/3)");
     this.updateObjective();
 
-    if (this.pigsCured >= 3) {
-      setTimeout(() => this.circeScene(), 800);
+    if (this.pigsCured >= 3 && !this._finaleStarted) this.scheduleFinale();
+    return true;
+  }
+
+  scheduleFinale() {
+    if (this._finaleStarted || this._finaleTimer !== null || this.pigsCured < 3) return;
+    this._finaleStarted = true;
+    this._finaleTimer = setTimeout(() => {
+      this._finaleTimer = null;
+      if (!this.isActiveScene() || this.pigsCured < 3) return;
+      this.circeScene();
+    }, 800);
+  }
+
+  isActiveScene() {
+    return this._sceneActive && !this.done && this.engine.scene === this;
+  }
+
+  sceneShake(amount) {
+    if (this._impactShake && amount > this._impactShake.baseline) {
+      this._impactShake.baseline = amount;
+      this._impactShake.peak = Math.max(this._impactShake.peak, amount);
     }
+    this.engine.shake(amount);
+  }
+
+  scheduleSwordImpactFeedback() {
+    if (!this.isActiveScene()) return;
+    const impact = { fired: false, timer: null };
+    this._pendingStrikeImpacts.add(impact);
+    impact.timer = setTimeout(() => {
+      this._pendingStrikeImpacts.delete(impact);
+      impact.timer = null;
+      if (impact.fired || !this.isActiveScene()) return;
+      impact.fired = true;
+      this.engine.hitStop(0.105);
+      this.startTimedImpactShake();
+    }, 60);
+  }
+
+  startTimedImpactShake() {
+    const active = this._impactShake;
+    const baseline = active ? active.baseline : this.engine.camera.shake;
+    this.engine.shake(1.0);
+    this._impactShake = {
+      baseline,
+      peak: this.engine.camera.shake,
+      elapsed: 0,
+      duration: 0.18,
+      lastApplied: this.engine.camera.shake,
+    };
+  }
+
+  updateTimedImpactShake(dt) {
+    const pulse = this._impactShake;
+    if (!pulse) return;
+    if (!this.isActiveScene()) {
+      this._impactShake = null;
+      return;
+    }
+    pulse.elapsed += Math.max(0, dt);
+    if (this.engine.camera.shake > pulse.lastApplied) {
+      pulse.baseline = Math.max(pulse.baseline, this.engine.camera.shake);
+      pulse.peak = Math.max(pulse.peak, pulse.baseline);
+    }
+    if (pulse.elapsed >= pulse.duration) {
+      if (this.engine.camera.shake <= pulse.lastApplied) this.engine.camera.shake = pulse.baseline;
+      this._impactShake = null;
+      return;
+    }
+    const remaining = 1 - pulse.elapsed / pulse.duration;
+    const amplitude = pulse.baseline + (pulse.peak - pulse.baseline) * remaining;
+    if (this.engine.camera.shake <= pulse.lastApplied) this.engine.camera.shake = amplitude;
+    pulse.lastApplied = this.engine.camera.shake;
   }
 
   /** Executes dynamic sword combat moves with PixelFX */
   executeSwordStrike(move) {
+    if (move !== "slash") return false;
     const W = this.engine.W, gy = this.groundY();
     const px = this.playerX * W;
 
-    if (move === "dash") {
-      this.playerX = Math.max(0.04, Math.min(0.96, this.playerX + this.facing * 0.10));
-      Cinematic.performMove("dash", px, gy, this.facing, { swordTier: Gear.kit().sword.id, engine: this.engine });
-      this.audio.sfx("sword");
-      return;
-    }
-
-    if (move === "block") {
-      Cinematic.performMove("block", px, gy, this.facing, { swordTier: Gear.kit().sword.id, engine: this.engine });
-      this.audio.sfx("block");
-      PixelVFX.spawn("impacts/shield-block", px + this.facing * 18, gy - 40, { palette: "bronze", scale: 1.0 });
-      return;
-    }
-
-    // Attacks (slash, uppercut, spin, spear)
-    Cinematic.performMove(move, px, gy, this.facing, { swordTier: Gear.kit().sword.id, engine: this.engine });
+    this._swordStrike = { elapsed: 0, duration: 0.34, direction: this.facing };
+    PixelVFX.spawn("melee/sword-slash", px + this.facing * 20, gy - 38, {
+      flip: this.facing < 0,
+      palette: "bronze",
+      scale: 0.95,
+    });
     this.audio.sfx("sword");
 
-    const range = move === "spear" ? 0.15 : move === "spin" ? 0.14 : 0.11;
-    const beast = this.beasts.find((b) => b.alive && Math.abs(b.at - this.playerX) < range);
+    const beast = this.beasts.find((b) => b.alive && Math.abs(b.at - this.playerX) < 0.11);
 
     if (beast) {
-      const dmg = move === "uppercut" ? 38 : move === "spin" ? 34 : move === "spear" ? 32 : 25;
+      const dmg = 25;
       beast.hp -= dmg;
       const bx = beast.at * W;
-      this.engine.shake(0.7);
+      this.sceneShake(0.7);
+      this.scheduleSwordImpactFeedback();
 
-      Cinematic.impact(bx, gy - 26, PAL.bronzeBright, true);
-      Cinematic.damageNumber(bx, gy - 46, dmg, move === "uppercut" || move === "spin");
+      PixelVFX.spawn("impacts/hit-flash", bx, gy - 26, { palette: "bronze", scale: 0.95 });
+      PixelVFX.spawn("ui/damage-number", bx, gy - 46, { text: "-" + dmg, palette: "blood", scale: 0.92 });
 
       if (beast.hp <= 0) {
         beast.alive = false;
@@ -325,6 +497,7 @@ export class Ch3Scene extends ChapterScene {
   }
 
   async circeScene() {
+    if (!this.isActiveScene()) return;
     this.objective(null);
     await this.say(
       { who: "NARRATOR", text: "As the third sailor broke free from his bristles, the great doors of Circe's palace swung open." },
@@ -335,6 +508,7 @@ export class Ch3Scene extends ChapterScene {
       { who: "CIRCE", text: "I swear it by the waters of Death. Come, feast as heroes. You have a longer road ahead than any living man." },
       { who: "NARRATOR", text: "Circe kept her oath. Before dawn, she guided Odysseus toward the true threshold of his fate: the Underworld." }
     );
+    if (!this.isActiveScene()) return;
 
     // Award Circe's legendary gifts
     const gotSword = Gear.award("sword", 2);
@@ -346,9 +520,12 @@ export class Ch3Scene extends ChapterScene {
         { who: "CIRCE", text: "Take a guest-gift: the Moly-tempered blade, and an Aegis half-cape woven to turn aside sorcery and steel." },
         { who: "NARRATOR", text: "Equipped with Circe's gifts, Odysseus prepares to cross the Styx into the House of Hades." }
       );
+      if (!this.isActiveScene()) return;
     }
     await this.finish({ hubris: 0 });
+    if (this.engine.scene !== this) return;
     const { startNext } = await import("../js/main.js");
+    if (this.engine.scene !== this) return;
     startNext();
   }
 
@@ -395,6 +572,13 @@ export class Ch3Scene extends ChapterScene {
       this.drawMolyBlossom(ctx, x, gy - 16 + bob, this.t + i);
     });
 
+    this.ings.forEach((ing, i) => {
+      if (ing.taken) return;
+      const x = ing.at * W, y = gy - 12 + Math.sin(this.t * 3 + i) * 2;
+      ctx.fillStyle = ING_COLORS[ing.ing]; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#fff4c2"; ctx.font = "bold 9px sans-serif"; ctx.textAlign = "center"; ctx.fillText(ING_GLYPHS[ing.ing], x, y + 3);
+    });
+
     // Swine crewmen (and restored upright Greek sailors once cured!)
     this.pigs.forEach((p, i) => {
       const px = p.at * W;
@@ -428,7 +612,19 @@ export class Ch3Scene extends ChapterScene {
     }
 
     // Player (Odysseus) with visible sword always in hand
-    const heroPose = Cinematic.getHeroPose();
+    const strike = this._swordStrike;
+    const u = strike ? Math.max(0, Math.min(1, strike.elapsed / strike.duration)) : 1;
+    const swing = strike ? Math.sin(u * Math.PI) : 0;
+    const heroPose = strike ? {
+      attackType: "slash",
+      k: u,
+      dy: 0,
+      dx: strike.direction * swing * 16,
+      lean: 0.22 * swing,
+      spin: 0,
+      bladeAngle: 1.3 - u * 2.5,
+      shield: false,
+    } : null;
     drawOdysseus(ctx, this.playerX * W, gy, 1.08, this.facing, this.t, false, Math.abs(this.engine.axisX() || this._holdDir || 0) > 0.05, Gear.kit(), heroPose);
     drawNameTag(ctx, this.playerX * W, gy - 108 + (heroPose ? (heroPose.dy || 0) : 0), "ODYSSEUS");
 
@@ -438,6 +634,8 @@ export class Ch3Scene extends ChapterScene {
       PixelVFX.drawLoop(ctx, "holy/heal", this.playerX * W, gy - 12, this.t * 1.8, { palette: "apollo", scale: 0.50 });
     }
 
+    if (this.potion) PixelVFX.drawLoop(ctx, "pickups/potion", this.playerX * W + 22 * this.facing, gy - 92, this.t, { palette: "apollo", scale: 0.62 });
+    this.ensureBenchButton();
     this.ensureCauldronButton();
     this.drawBursts(ctx);
   }
@@ -647,9 +845,17 @@ export class Ch3Scene extends ChapterScene {
     const b = document.createElement("button");
     b.id = "cauldron-brew-btn";
     b.className = "btn-stone";
-    b.style.cssText = "position:absolute;left:50%;bottom:14%;transform:translateX(-50%);display:none;font-size:13px;padding:9px 20px;z-index:32;font-weight:bold;letter-spacing:1px;background:#24160a;border:2px solid #e6c069;color:#fff4c2;";
+    b.style.cssText = "position:absolute;left:66%;bottom:14%;transform:translateX(-50%);display:none;font-size:12px;padding:9px 12px;z-index:32;font-weight:bold;letter-spacing:1px;background:#24160a;border:2px solid #e6c069;color:#fff4c2;";
     b.textContent = "TRANSMUTE MOLY ELIXIR";
     b.addEventListener("click", () => this.transmuteCauldron());
+    document.getElementById("mech-ui").appendChild(b);
+  }
+
+  ensureBenchButton() {
+    if (document.getElementById("bench-open")) return;
+    const b=document.createElement("button"); b.id="bench-open"; b.className="btn-stone";
+    b.style.cssText="position:absolute;left:34%;bottom:14%;transform:translateX(-50%);display:none;font-size:12px;padding:9px 12px;z-index:32;font-weight:bold;letter-spacing:1px;background:#24160a;border:2px solid #e6c069;color:#fff4c2;";
+    b.textContent="BREW POTION"; b.addEventListener("click",()=>this.openBench());
     document.getElementById("mech-ui").appendChild(b);
   }
 }

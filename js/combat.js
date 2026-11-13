@@ -602,12 +602,12 @@ export class FilmIntro {
       if (a > 0.01) {
         const titleSize = Math.min(64, Math.max(32, W * 0.095));
         const subSize = Math.max(13, Math.min(18, W * 0.032));
-        
+
         const titleY = H * 0.44;
         const subY = H * 0.55;
         const topRuleY = titleY - titleSize * 0.72;
         const btmRuleY = subY + subSize * 1.5;
-        
+
         // Radiant golden aura behind title
         const glow = ctx.createRadialGradient(W / 2, H * 0.48, 10, W / 2, H * 0.48, W * 0.42);
         glow.addColorStop(0, `rgba(230, 192, 105, ${0.28 * a})`);
@@ -617,7 +617,7 @@ export class FilmIntro {
         ctx.fillRect(0, 0, W, H);
 
         this._title(ctx, W / 2, titleY, "O D Y S S E Y", titleSize, a, PAL.bone, W * 0.85);
-        
+
         // Subtitle
         ctx.save();
         ctx.globalAlpha = a * 0.85;
@@ -627,20 +627,20 @@ export class FilmIntro {
         ctx.textBaseline = "middle";
         ctx.fillText("the long way home", W / 2, subY);
         ctx.restore();
-        
+
         // Elegant framing lines with gold center diamond / meander accents
         ctx.save();
         ctx.globalAlpha = a * 0.75;
         ctx.strokeStyle = PAL.bronze;
         ctx.lineWidth = 1.8;
         const w2 = Math.min(260, W * 0.36);
-        
+
         // Top Rule
         ctx.beginPath();
         ctx.moveTo(W / 2 - w2, topRuleY);
         ctx.lineTo(W / 2 + w2, topRuleY);
         ctx.stroke();
-        
+
         // Bottom Rule
         ctx.beginPath();
         ctx.moveTo(W / 2 - w2, btmRuleY);

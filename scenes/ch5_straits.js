@@ -36,7 +36,7 @@ export class Ch5Scene extends ChapterScene {
 
     this.phase = "sirens";
     this.setupSirens();
-    this.objective("TAP or press <span class=\"kbd\">W</span> on the notes — hold the long ones — stay the course");
+    this.objective("TAP or press <span class=\"kbd\">SPACE</span> on the notes — hold the long ones — stay the course");
   }
 
   /* ============================================================
@@ -118,7 +118,7 @@ export class Ch5Scene extends ChapterScene {
 
   judge(kind, n) {
     const r = this.r;
-    const W = this.engine.w, H = this.engine.h, seaY = H * 0.62;
+    const W = this.engine.W, H = this.engine.H, seaY = H * 0.62;
     if (kind === "perfect") {
       r.resistance = Math.min(100, r.resistance + 9);
       r.perfect++;
@@ -269,7 +269,7 @@ export class Ch5Scene extends ChapterScene {
           s.hits++;
           this.audio.sfx("crash");
           this.engine.shake(1.5);
-          const sx = this.engine.w * 0.3, sy = s.laneY * this.engine.h;
+          const sx = this.engine.W * 0.3, sy = s.laneY * this.engine.H;
           if (o.top) {
             PixelVFX.spawn("melee/claw-swipe", sx + 12, sy - 14, { palette: "blood", scale: 1.85, angle: 0.35, engine: this.engine });
             PixelVFX.spawn("impacts/hit-spark", sx, sy - 8, { palette: "blood", scale: 1.5 });
@@ -338,17 +338,29 @@ export class Ch5Scene extends ChapterScene {
     // taps routed through engine onTap -> handleTap
   }
 
-  /* keyboard: W strikes/holds notes; W/S steer the strait */
+  /* keyboard: SPACE strikes/holds notes; W/S steer the strait */
   onActionKey(k) {
-    if (this.phase === "sirens" && (k === "w" || k === " " || k === "enter")) {
+    if (this.phase === "sirens" && (k === " " || k === "enter")) {
       this.sirenStrike();
     }
   }
 
   onKeyUp(k) {
     // release a held note early (same judgment as lifting the finger)
-    if (k === "w" && this.phase === "sirens" && this.r) {
+    if (k === " " && this.phase === "sirens" && this.r) {
       this.releaseHolds();
+    }
+  }
+
+  onPointerCancel() {
+    this._holdSide = 0;
+    // On cancellation (e.g. system gesture / call / interrupt), do not judge hold release as a whiff
+    if (this.phase === "sirens" && this.r) {
+      for (const n of this.r.notes) {
+        if (n.holding && !n.done) {
+          n.holding = false;
+        }
+      }
     }
   }
 

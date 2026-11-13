@@ -11,6 +11,7 @@ import { HUD, Mech } from "../js/ui.js";
 import { Gear } from "../js/gear.js";
 import { Fx } from "../js/fx.js";
 import { Cinematic } from "../js/combat.js";
+import { MovementController } from "../js/movement.js";
 import { PixelVFX } from "../js/pixelvfx.js";
 import { Stick } from "../js/stick.js";
 
@@ -21,6 +22,14 @@ export class Ch1Scene extends ChapterScene {
     this.audio.startAmbience("cave");
     this.audio.playChapterMusic(1); // phrygian cave menace
     this.playerX = 0;
+    this.controller = new MovementController({
+      coordMode: "pixels",
+      baseSpeed: 300,
+      minX: this.engine.W * 0.06,
+      maxX: this.engine.W * 0.6,
+      capabilities: { run: true, jump: false, dodge: true },
+      dodgeDistance: this.engine.W * 0.2,
+    });
     this.playerHP = 3;
     this.noise = 0;
     this.state = "sneak";
@@ -47,7 +56,7 @@ export class Ch1Scene extends ChapterScene {
     this.noise = Math.min(1, this.noise + Math.abs(dx) * 0.0035);
   }
 
-  tick(dt) {
+  tick(dt, timing = {}) {
     // firelight comes alive — embers rising from the hearth
     this._fl = (this._fl || 0) + dt;
     if (this._fl > 0.22) {
@@ -96,8 +105,9 @@ export class Ch1Scene extends ChapterScene {
     }
 
     /* ---------------- fight phase ---------------- */
-    if (this.state === "fight") this.tickFight(dt);
+    if (this.state === "fight") this.tickFight(dt, timing);
     if (this.state === "won") { /* victory handled in story */ }
+    Stick.setDodgeVisible(this.state === "fight" && this.fight?.phase !== "staggered");
   }
 
   async story() {
@@ -120,7 +130,8 @@ export class Ch1Scene extends ChapterScene {
     this.playerHP = 5;
     HUD.health(5);
     Stick.setCombatMode(true);
-    Stick.refreshBow();
+    Stick.setDodgeVisible(true);
+    Stick.setBowAvailable(true);
     const W = this.engine.W;
     this.fight = {
       hp: 210,
@@ -141,6 +152,7 @@ export class Ch1Scene extends ChapterScene {
       spinCd: 0,
       upperCd: 0,
       spearCd: 0,
+      dashCd: 0,
       combo: 0,
       comboT: 0,
       lastMove: null,
@@ -164,6 +176,8 @@ export class Ch1Scene extends ChapterScene {
 
   cleanup() {
     Stick.setCombatMode(false);
+    Stick.setDodgeVisible(false);
+    Stick.setBowAvailable(false);
   }
 
   updateBossUI() {
@@ -280,7 +294,7 @@ export class Ch1Scene extends ChapterScene {
     if (d) d.remove();
   }
 
-  tickFight(dt) {
+  tickFight(dt, timing = {}) {
     const f = this.fight, eng = this.engine;
     const W = eng.W, gy = this.groundY();
 
@@ -292,6 +306,7 @@ export class Ch1Scene extends ChapterScene {
     if (f.spinCd > 0) f.spinCd = Math.max(0, f.spinCd - dt);
     if (f.upperCd > 0) f.upperCd = Math.max(0, f.upperCd - dt);
     if (f.spearCd > 0) f.spearCd = Math.max(0, f.spearCd - dt);
+    if (f.dashCd > 0) f.dashCd = Math.max(0, f.dashCd - dt);
     if (f.comboT > 0) {
       f.comboT -= dt;
       if (f.comboT <= 0) f.combo = 0;
@@ -306,10 +321,13 @@ export class Ch1Scene extends ChapterScene {
       this.facing = 1;
       this.aimDir = 1;
     }
-    const moveSpeed = f.guardT > 0 ? 160 : 320;
-    this.playerX += clamp(moveAxis, -1, 1) * dt * moveSpeed;
-    this.playerX = clamp(this.playerX, W * 0.06, Math.min(W * 0.72, f.bossX - 42));
-    if (this.dash > 0) this.dash -= dt;
+    this.controller.setBoundaries(W * 0.06, Math.min(W * 0.72, f.bossX - 42));
+    this.controller.baseSpeed = f.guardT > 0 ? 160 : 320;
+    this.controller.dodgeDistance = W * 0.2;
+    this.playerX = this.controller.updateHorizontal(this.playerX, moveAxis, dt, {
+      shiftRun: eng.keyDown("Shift"),
+      hitStop: timing.hitStop,
+    });
 
     // passive giant footwork during idle — stalks near player range
     if (f.phase === "idle") {
@@ -328,7 +346,7 @@ export class Ch1Scene extends ChapterScene {
         break;
       case "swing": {
         f.timer -= dt;
-        if (f.pattern !== "rocks" && !this._hitThisSwing && !(this.dash > 0)) {
+        if (f.pattern !== "rocks" && !this._hitThisSwing && !this.controller.isInvulnerable()) {
           const hitCenter = f.slamX || (f.bossX - W * 0.22);
           if (Math.abs(this.playerX - hitCenter) < W * 0.16) {
             this._hitThisSwing = true;
@@ -341,7 +359,7 @@ export class Ch1Scene extends ChapterScene {
       case "charge": {
         f.timer -= dt;
         f.bossX = Math.max(W * 0.22, f.bossX - W * 0.85 * dt);
-        if (!this._hitThisSwing && !(this.dash > 0) && Math.abs(this.playerX - f.bossX) < 76) {
+        if (!this._hitThisSwing && !this.controller.isInvulnerable() && Math.abs(this.playerX - f.bossX) < 76) {
           this._hitThisSwing = true;
           this.resolveBossHit();
         }
@@ -388,7 +406,7 @@ export class Ch1Scene extends ChapterScene {
     for (const b of f.boulders) {
       if (b.warn > 0) { b.warn -= dt; continue; }
       b.vy += dt * 920; b.y += b.vy * dt;
-      if (Math.abs(b.x - this.playerX) < 34 && Math.abs(b.y - gy + 30) < 42 && this.dash <= 0) {
+      if (Math.abs(b.x - this.playerX) < 34 && Math.abs(b.y - gy + 30) < 42 && !this.controller.isInvulnerable()) {
         b.y = 1e9;
         PixelVFX.spawn("explosions/dirt-explosion", b.x, gy, { palette: "rock", scale: 0.78 });
         this.resolveBossHit();
@@ -471,6 +489,7 @@ export class Ch1Scene extends ChapterScene {
     const f = this.fight;
     f.phase = "staggered"; f.timer = 99;
     this.state = "down";
+    Stick.setBowAvailable(false);
     await this.say(
       { who: "NARRATOR", text: "Darkness took you at the cave's edge — but not the end. The crew dragged you back into the shadows." },
       { who: "ODYSSEUS", text: "Again, then. The stake is still sharp." }
@@ -481,6 +500,7 @@ export class Ch1Scene extends ChapterScene {
     f.bossX = f.baseBossX;
     f.phase = "idle"; f.timer = 1.4;
     this.state = "fight";
+    Stick.setBowAvailable(true);
   }
 
   /* ---------------- input ---------------- */
@@ -501,7 +521,7 @@ export class Ch1Scene extends ChapterScene {
 
   onSwipe(dir) {
     if (this.state !== "fight") return;
-    if ((dir === "left" || dir === "right") && this.dash <= 0) {
+    if (dir === "left" || dir === "right") {
       this.dodge(dir === "left" ? -1 : 1);
     } else if (dir === "up") {
       this.heroMove("uppercut");
@@ -510,14 +530,17 @@ export class Ch1Scene extends ChapterScene {
 
   dodge(dir) {
     const f = this.fight;
-    if (this.dash > 0 || !f || f.phase === "done") return;
-    this.dash = 0.34;
-    this.dashDir = dir;
+    if (!f || f.phase === "done" || !this.controller.dodge(dir)) return false;
     Stick.cooldown("btn-dash", 380);
     Cinematic.performMove("dash", this.playerX, this.groundY(), dir, { engine: this.engine });
-    this.playerX = clamp(this.playerX + dir * this.engine.W * 0.19, this.engine.W * 0.06, f.bossX - 42);
     this.audio.sfx("footstep");
-    this.burst(this.playerX, this.groundY() - 30, PAL.bone, 40, 3);
+    const dodgeEndX = clamp(
+      this.playerX + this.controller.dodgeDirection * this.controller.dodgeDistance,
+      this.controller.minX,
+      this.controller.maxX
+    );
+    this.burst(dodgeEndX, this.groundY() - 30, PAL.bone, 40, 3);
+    return true;
   }
 
   /** trigger any Odysseus combat skill cleanly from APK buttons or keyboard */
@@ -528,6 +551,16 @@ export class Ch1Scene extends ChapterScene {
     const kit = Gear.kit();
     const swordTier = kit.sword.id;
     const dist = Math.abs(f.bossX - this.playerX);
+
+    if (kind === "dash") {
+      if (f.dashCd > 0) return;
+      f.dashCd = 0.55;
+      Stick.cooldown("btn-dash", 550);
+      Cinematic.performMove("dash", this.playerX, this.groundY(), this.facing, { engine: this.engine });
+      this.playerX = clamp(this.playerX + this.facing * 0.08 * this.engine.W, this.engine.W * 0.06, f.bossX - 42);
+      this.audio.sfx("footstep");
+      return;
+    }
 
     if (kind === "block") {
       if (f.guardT > 0.35) return;
@@ -652,14 +685,15 @@ export class Ch1Scene extends ChapterScene {
 
   onActionKey(k) {
     if (this.state !== "fight") return;
-    if (k === "a" || k === "d") this.dodge(k === "a" ? -1 : 1);
-    else if (k === "shift") this.dodge(this.facing || 1);
+    if (k === "dodge") this.dodge(this.engine.axisX());
+    else if (k === "r") this.heroMove("dash");
     else if (k === "u") this.heroMove("uppercut");
-    else if (k === "k") this.heroMove("spin");
+    else if (k === "i") this.heroMove("spin");
     else if (k === "l") this.heroMove("spear");
     else if (k === "f") this.heroMove("block");
-    else if (k === " " || k === "enter" || k === "j") this.heroMove("slash");
+    else if (k === " " || k === "enter") this.heroMove("slash");
     else if (k === "bow") {
+      if (!Stick.canUseBow()) return;
       this.shootBow({ x: this.playerX + this.aimDir * 22, y: this.groundY() - 104, speed: 860 });
     }
   }
@@ -705,6 +739,7 @@ export class Ch1Scene extends ChapterScene {
     this.state = "won";
     this.fight.phase = "done";
     Stick.setCombatMode(false);
+    Stick.setBowAvailable(false);
     Mech.hide();
     this.audio.sfx("flare");
     setTimeout(() => this.audio.sfx("roar"), 400);
@@ -796,7 +831,7 @@ export class Ch1Scene extends ChapterScene {
     }
 
     // odysseus (animated with pixelfx-synced pose & dash flicker)
-    if (!(this.dash > 0 && Math.floor(this.t * 20) % 2 === 0)) {
+    if (!(this.controller?.state === "DODGING" && Math.floor(this.t * 20) % 2 === 0)) {
       const heroPose = Cinematic.getHeroPose() || (this.fight && this.fight.guardT > 0 ? { shield: true } : null);
       drawOdysseus(ctx, this.playerX, gy, 1.05, this.facing || 1, this.t, this.state === "fight", true, Gear.kit(), heroPose);
       drawNameTag(ctx, this.playerX, gy - 80 + (heroPose ? (heroPose.dy || 0) : 0), "ODYSSEUS");

@@ -255,9 +255,9 @@ async function beginScene() {
   });
   engine.setScene(currentScene);
   Stick.setCombatMode(false);
-  Stick.refreshBow();
-  Stick.setInGame(true);
+  Stick.setBowAvailable(false);
   await currentScene.begin();
+  Stick.setInGame(true);
 }
 
 export async function startNext() {
@@ -365,8 +365,8 @@ function bindUI() {
     if (e.repeat) return; // movement keys are polled, not edge-triggered
     const k = e.key.toLowerCase();
 
-    // in-game escape: return to home screen
-    if (k === "escape" && currentIdx >= 0) {
+    // in-game escape: return to home screen (or exit dev test scene)
+    if (k === "escape" && (currentIdx >= 0 || currentScene)) {
       returnHome();
       e.preventDefault();
       return;
@@ -425,7 +425,12 @@ function bindUI() {
     const sc = currentScene;
     if (!sc) return;
     if (k === "b") { // bow on a key too (B like the touch button)
-      if (sc.onActionKey) sc.onActionKey("bow");
+      if (Stick.canUseBow() && sc.onActionKey) sc.onActionKey("bow");
+      return;
+    }
+    if (k === "c" || k === "k") {
+      if (sc.onActionKey) sc.onActionKey("dodge");
+      e.preventDefault();
       return;
     }
     if (sc.onActionKey) { sc.onActionKey(k); return; }
@@ -456,7 +461,6 @@ try {
   engine.resize();
   engine.start();
   bindUI();
-
   // If returning directly from an in-app update, resume right into the active chapter
   const resumeIdx = localStorage.getItem("odyssey-resume-after-update");
   if (resumeIdx !== null && !isNaN(Number(resumeIdx)) && Number(resumeIdx) >= 0) {
@@ -465,6 +469,30 @@ try {
   } else {
     showScreen("title");
   }
+
+  // Development-only test scene launcher for Phase 2A
+  window.odysseyTestMovement = async () => {
+    try {
+      const { MovementTestScene } = await import("./movement.js");
+      if (currentScene && currentScene.cleanup) {
+        try { currentScene.cleanup(); } catch (e) { console.warn(e); }
+      }
+      currentIdx = -100; // special non-campaign index
+      showScreen(null);
+      const btnHome = $("btn-home");
+      if (btnHome) btnHome.classList.remove("hidden");
+      currentScene = new MovementTestScene(engine, Audio, {
+        title: "Movement Test Lab",
+        chapterLabel: "Dev Lab",
+      });
+      engine.setScene(currentScene);
+      await currentScene.begin();
+      Stick.setInGame(true);
+      console.log("ODYSSEY: MovementTestScene active. Press ESC or click Home to return.");
+    } catch (err) {
+      console.error("Failed to launch odysseyTestMovement:", err);
+    }
+  };
 } catch (e) {
   console.error("boot failed", e);
 }

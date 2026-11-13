@@ -1,0 +1,663 @@
+================================================================================
+
+--------------------------------------------------------------------------------
+M. TEAM INTEGRATION STAGE 3 — MERGE CHECKPOINT
+--------------------------------------------------------------------------------
+- [VERIFIED] Integration branch `integration/team-merge-2026-11-12` merged
+  `origin/main` with a normal non-fast-forward merge.
+- Imported commits: `0076f59` (OTA v1.2.1, PixelFX combat skills and mandatory
+  updater) and `8fcb5f8` (VR OTA manifest and version bump script).
+- [VERIFIED] The local `MovementController`, shared dodge lifecycle, Chapter I
+  and Chapter VI controller integration, C/K routing, contextual DODGE control,
+  and standalone `StaminaSystem` were preserved.
+- [VERIFIED] Remote PixelFX assets, combat actions, OTA updater, version
+  manifests, Android networking changes, and VR scripts were retained.
+- Manual reconciliation was required in `js/stick.js`, `styles.css`,
+  `scenes/ch1_cyclops.js`, and `scenes/ch6_ithaca.js`, including their Android
+  packaged counterparts. Remote combat controls were retained alongside the
+  contextual DODGE button; direct dash checks were routed through shared dodge
+  invulnerability and timing.
+- Known risks remain: OTA integrity, offline, rollback, lifecycle, cache
+  coherence, and Android runtime behaviour require dedicated later testing.
+  Combat actions are present but stamina integration remains intentionally
+  absent.
+
+                    ODYSSEY — TECHNICAL AUDIT & ARCHITECTURE REFERENCE
+================================================================================
+Document: TECHNICAL_AUDIT.txt
+Baseline: Release v1.0.0 (commit ccd8477)
+Inspection Date: 2026-11-10
+Scope: Read-Only Technical Audit of Engine, Scenes, Android Shell, Audio, and Storage
+Status: AUDIT COMPLETE — Phase 0 Baseline Established
+================================================================================
+
+Finding Verification Key:
+  [VERIFIED]  - Confirmed by direct source-code inspection.
+  [POTENTIAL] - Plausible risk requiring targeted runtime reproduction.
+  [UNKNOWN]   - Cannot be determined from code inspection alone.
+
+--------------------------------------------------------------------------------
+A. EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+ODYSSEY is an operational, highly-optimised 2D action-adventure web game embedded in 
+an Android native WebView shell. The code is written in clean, modern vanilla JavaScript 
+(ES Modules) without external npm runtime dependencies or frameworks. 
+
+The baseline release (v1.0.0) is stable and playable from Prologue through Chapter VI. 
+However, the gameplay across chapters currently relies on chapter-specific, ad-hoc 
+interaction loops rather than unified shared systems. The project is now embarking on 
+an incremental modernization following the approved Game Design Document (GDD) and 
+Final Gameplay Systems Specification.
+
+Key Strengths:
+  - Lean footprint (~250KB code/styling; ~3.6MB voice files; zero bitmap/audio asset bloat).
+  - Robust zero-permission offline architecture via AndroidX WebViewAssetLoader.
+  - Expressive procedural canvas rendering with custom palette and lighting effects.
+  - Multi-tier speech synthesis architecture (MP3 voiceover -> AndroidTTS -> Web Speech API).
+
+Primary Technical Challenges for Modernisation:
+  - Input & Lifecycle: Incomplete pointercancel handling and lack of input blocking 
+    during dialogue create risks of stuck states and unintended actions.
+  - Movement & Traversal: Currently fragmented across scenes; grounded jumping, 
+    coyote time, and unified running do not exist in the engine yet.
+  - Combat & Stamina: Existing combat is mostly visual VFX (`js/combat.js`) and 
+    isolated chapter combat scripts; a unified lightweight stamina model (100 max, 
+    regeneration delay, dodge/parry costs) has not yet been implemented.
+  - Save Versioning: Current `Save` object does not track save schema versions, 
+    checkpoints within chapters, or complex narrative flags.
+
+--------------------------------------------------------------------------------
+B. REPOSITORY STRUCTURE
+--------------------------------------------------------------------------------
+Main Web Application:
+  - index.html                   [VERIFIED] SPA container, canvas element, dialogue & HUD DOM overlays.
+  - styles.css                   [VERIFIED] UI styling, pottery theme variables, responsive typography.
+  - manifest.webmanifest         [VERIFIED] PWA manifest specifying landscape orientation and standalone display.
+  - sw.js                        [VERIFIED] Service worker implementing cache-first strategy for offline play.
+  - preview/server.js            [VERIFIED] Standalone Node.js HTTP server binding LAN interfaces for testing.
+
+JavaScript Engine Modules (`js/`):
+  - js/main.js                   [VERIFIED] Application bootstrap, screen state router (title, map, armory, end),
+                                            chapter chaining (`startNext`), keyboard event router.
+  - js/engine.js                 [VERIFIED] Engine class, RAF game loop, viewport resize & DPR scaling, camera,
+                                            pointer/mouse/keyboard listeners, `Save` persistence singleton.
+  - js/scenefw.js                [VERIFIED] `ChapterScene` base class, async scripting (`say`, `waitTap`),
+                                            arrow physics simulation, HUD/mechanics lifecycle hooks.
+  - js/art.js                    [VERIFIED] Comprehensive procedural 2D Canvas vector rendering library:
+                                            characters, silhouettes, ships, mythological creatures, torches,
+                                            Greek vase decorative borders, particle generators.
+  - js/combat.js                 [VERIFIED] Two components: `Cinematic` (slash arcs, impact shockwaves, sparks,
+                                            hit-stop frames) and `FilmIntro` (cinematic Trojan Horse prologue sequence).
+  - js/gear.js                   [VERIFIED] Weapons, armour, quivers, and bows definitions; damage calculation,
+                                            gear unlocking, and equipping logic.
+  - js/stick.js                  [VERIFIED] Virtual analog touch joystick with deadzone curve; ACT & BOW touch buttons.
+  - js/ui.js                     [VERIFIED] Typewriter dialogue box, choice picker, HUD banner, objective toaster.
+  - js/fx.js                     [VERIFIED] Post-processing & environment effects: god rays, film grain, vignette,
+                                            color grading styles (`troyburn`, `storm`, `underworld`, etc.).
+  - js/audio.js                  [VERIFIED] Procedural Web Audio API synthesizer: multi-voice lyre instruments,
+                                            chapter musical scores, percussion, noise generators, reverb, ducking.
+  - js/voice.js                  [VERIFIED] Triple-tier voiceover system: 1) Hashed MP3 clips (`audio/voices/`),
+                                            2) Native Android TTS via JavaScriptInterface, 3) Browser Web Speech API.
+
+Chapter Scenes (`scenes/`):
+  - scenes/prologue.js           [VERIFIED] The Fall of Troy: cinematic march, Agamemnon dialogue, walk to ships.
+  - scenes/ch1_cyclops.js        [VERIFIED] Polyphemus's Cave: stealth grazing, wine drugged sheep, eye stake QTE.
+  - scenes/ch2_winds.js          [VERIFIED] Aeolus & The Bag of Winds: interactive sailing, sail trim, steering, storm survival.
+  - scenes/ch3_circe.js          [VERIFIED] Circe's Island: herb gathering, crafting Clarifying Draught, curing transformed crew.
+  - scenes/ch4_underworld.js     [VERIFIED] The Underworld: blood sacrifice ritual, shades dialogue, prophet Tiresias.
+  - scenes/ch5_straits.js        [VERIFIED] Sirens, Scylla & Charybdis: rhythm note tapping & narrow strait ship steering.
+  - scenes/ch6_ithaca.js         [VERIFIED] Homecoming to Ithaca: beggar disguise, bow challenge, palace combat duel vs Antinous.
+
+Android Shell (`android/`):
+  - android/app/src/main/java/com/odyssey/game/MainActivity.java
+                                 [VERIFIED] Native Java activity hosting WebView, immersive sticky landscape mode,
+                                            display cutout management, hardware back-button interception,
+                                            `AndroidTTS` JavaScriptInterface bridge, WebViewAssetLoader routing.
+  - android/app/src/main/AndroidManifest.xml
+                                 [VERIFIED] Confirmed zero-permission manifest (NO `android.permission.INTERNET`).
+  - android/app/build.gradle     [VERIFIED] Target SDK 34, Min SDK 24, AndroidX WebKit dependency.
+  - android/app/src/main/assets/ [VERIFIED] Embedded copy of web files packaged directly into APK.
+
+Audio & Fonts:
+  - audio/voices/ (94 MP3 files) [VERIFIED] Pre-recorded vocal performances for all dialogue lines.
+  - fonts/                       [VERIFIED] Offline WOFF2 font files: Cinzel (variable) & Spectral (400, 400i, 500, 600).
+
+--------------------------------------------------------------------------------
+C. EXISTING ARCHITECTURE
+--------------------------------------------------------------------------------
+1. Game Loop & Scheduling (`js/engine.js`):
+   - Driven by `requestAnimationFrame`. Delta time (`dt`) is capped at 0.1s to prevent 
+     spiral-of-death tunneling.
+   - [VERIFIED] Includes a fallback interval timer (`setInterval` at 33ms) that forces 
+     simulation steps if `performance.now() - this.lastT > 220ms` (handles backgrounded 
+     tabs and aggressive mobile throttling).
+   - Hit-stop mechanic (`engine.hitStop(sec)`) freezes frame updates for brief intervals 
+     to provide tactile impact feedback on heavy attacks.
+
+2. Scene Lifecycle (`js/scenefw.js` & `js/main.js`):
+   - `main.js` manages scene transitions via `startNext()` and `playChapter(idx)`.
+   - `ChapterScene` provides `initState()`, `intro()`, `tick(dt)`, `draw(ctx)`, and `cleanup()`.
+   - [VERIFIED] Base class automatically initialises chapter-specific visual styles in `Fx.setStyle()`.
+   - Cleanup is handled in `finish(extra)` by hiding HUD elements and invoking optional scene `cleanup()`.
+
+3. Input Handling (`js/engine.js` & `js/stick.js`):
+   - Desktop: Keyboard listener binds `keydown`/`keyup` to a `Set` (`engine.keys`). Continuous 
+     movement axes `axisX()` and `axisY()` map WASD and arrow keys to [-1, 1].
+   - Touch/Mobile: `js/stick.js` manages a dynamic on-screen floating joystick updating 
+     `engine.stickX` and `engine.stickY`. Action buttons (`#btn-act` and `#btn-bow`) dispatch 
+     virtual key events (`" "` and `"bow"`).
+   - Gestures: `engine.js` detects taps (duration < 600ms, movement < 12px) and directional 
+     swipes (distance > 24px, duration < 450ms).
+
+4. Rendering Pipeline (`js/art.js` & `js/fx.js`):
+   - Canvas resolution matches device pixel ratio up to `DPR = 2` for high-DPI crispness.
+   - Camera transforms world coordinates to screen space with automatic viewport zoom 
+     scaling (`zoom = Math.min(W / 840, H / 520)`).
+   - Post-processing overlay (`Fx.end(ctx)`) applies a unified pass of vignette, film grain, 
+     dust/ember particles, god rays, and dynamic hero rim-lighting (`Fx.hero()`).
+
+--------------------------------------------------------------------------------
+D. ROOT / ANDROID ASSET SYNCHRONISATION COMPARISON
+--------------------------------------------------------------------------------
+A direct recursive comparison was performed between root assets and `android/app/src/main/assets/`:
+
+1. `js/art.js` vs `android/.../js/art.js`:
+   - [VERIFIED MISMATCH] Root `js/art.js` is 45,951 bytes; Android copy is 42,955 bytes.
+   - Difference Analysis: Root contains more detailed inline comments and expanded 
+     hoplite/Agamemnon drawing routines. Functional character rendering remains compatible, 
+     but the root version is the more recent revision.
+
+2. `sw.js` vs `android/.../sw.js`:
+   - [VERIFIED MISMATCH] Root `sw.js` specifies `const CACHE = "odyssey-v10";`; Android packaged 
+     copy specifies `const CACHE = "odyssey-v9";`.
+   - Note: In Android WebView, `WebViewAssetLoader` bypasses service worker caching, so 
+     this mismatch does not affect APK operation, but reflects divergent edit history.
+
+3. All other files:
+   - `index.html`, `styles.css`, `manifest.webmanifest`, `fonts/*`, `icons/*`, `audio/voices/*`, 
+     and all 7 chapter scripts (`scenes/*.js`) are BIT-FOR-BIT IDENTICAL [VERIFIED].
+
+--------------------------------------------------------------------------------
+E. INPUT AND MOVEMENT AUDIT
+--------------------------------------------------------------------------------
+1. Pointer Cancellation [VERIFIED RISK]:
+   - In `js/engine.js`:
+     ```javascript
+     c.addEventListener("pointercancel", () => { this.pointer.down = false; this.dragging = false; });
+     ```
+   - In `scenes/ch1_cyclops.js`, `scenes/ch2_winds.js`, `scenes/ch3_circe.js`, and `scenes/ch4_underworld.js`:
+     The scenes track their own private hold variables (`_holdDir`, `holdDir`, `hold`).
+   - When a system gesture, incoming phone call, or OS prompt fires `pointercancel`, `engine.pointer.down` 
+     resets, but `scene.onPointerUp()` is NEVER called.
+   - Result: Characters can become stuck moving indefinitely in the last held direction until another touch occurs.
+
+2. Dialogue Input Restriction [VERIFIED RISK]:
+   - When dialogue appears, `document.body.classList.add("dlg-open")` is set, which visually dims 
+     `#touch-controls` to opacity 0.22 in CSS.
+   - However, `pointer-events: none` is NOT applied to `#touch-controls` or the canvas.
+   - As a consequence, players can continue pressing the virtual joystick or tapping action buttons 
+     while dialogue boxes are active, causing background character movement or unwanted weapon swings.
+
+3. Chapter-Specific Movement Fragmentation [VERIFIED]:
+   - Prologue: Fixed cinematic script; movement is simple 1D `playerX` addition.
+   - Chapter I: Discrete grid/lane movement with custom dragging speed.
+   - Chapter II: Rotational ship steering physics (`steerAngle`, `windAngle`).
+   - Chapter III: Continuous 2D plane movement with herb collision checks.
+   - Chapter V: Vertical steering lane selection.
+   - Chapter VI: 1D horizontal combat arena movement with dodge roll state.
+   - Assessment: There is no shared movement controller class. Jumping, grounded physics, 
+     and variable-height leaps do not exist anywhere in the engine.
+
+--------------------------------------------------------------------------------
+F. COMBAT AND EQUIPMENT AUDIT
+--------------------------------------------------------------------------------
+1. Combat State Architecture [VERIFIED]:
+   - Currently, `js/combat.js` is not a gameplay state machine; it is solely an effects 
+     manager (`Cinematic.slash`, `Cinematic.sparks`, `Cinematic.impact`, `Cinematic.arrowTrail`) 
+     plus the non-interactive `FilmIntro` sequence.
+   - Combat logic is implemented directly inside `scenes/ch6_ithaca.js` (melee duel vs Antinous) 
+     and `js/scenefw.js` (bow shooting and arrow hit registration).
+   - Stamina: There is NO stamina property or tracking in `Engine`, `ChapterScene`, or `Save`.
+   - Parrying: No active timed-parry system exists.
+
+2. Equipment and Progression (`js/gear.js`) [VERIFIED]:
+   - Defines tiered arrays:
+     * `ARMOR`: Linen Chiton (0) -> Aegis Half-Cape (1) -> Armor of Achilles (2).
+     * `SWORDS`: Bronze Xiphos (0) -> Moly-Tempered Blade (1) -> Sword of Hector (2).
+     * `BOWS`: None (0) -> Great Bow of Odysseus (1).
+     * `ARROWS`: Broadhead Shafts (0) -> Fire Arrows (1) -> Arrows of Apollo (2).
+   - Supports down-equipping (`gear.swordEq`, `gear.arrowEq`) while preserving ownership.
+   - Weapon damage values and visual FX are wired up, but special gameplay attributes 
+     (e.g., moly magic mitigation, crowd-cleave effects) are currently hardcoded or cosmetic.
+
+--------------------------------------------------------------------------------
+G. SAVE SYSTEM AUDIT
+--------------------------------------------------------------------------------
+1. Storage Engine (`js/engine.js` -> `Save`) [VERIFIED]:
+   - Storage medium: Browser `localStorage` under key `"odyssey-save-v1"`.
+   - Current schema structure:
+     ```javascript
+     {
+       unlocked: 1,       // Number (1-based chapter unlock index)
+       hubris: 0,         // Number (accumulated hubris score)
+       completed: [],     // Array<Number> (indices of finished chapters)
+       best: {},          // Object (per-chapter high score / performance metrics)
+       gear: {            // Object (stored by Gear.load())
+         armor: 0,
+         sword: 0,
+         bow: 0,
+         arrow: 0,
+         swordEq: 0,
+         arrowEq: 0
+       }
+     }
+     ```
+2. Save Migration & Robustness Risks:
+   - [VERIFIED] Schema versioning is absent. If data structures expand in Phase 4 (e.g., adding 
+     `checkpoints`, `narrativeFlags`, `crewMorale`, `crewTrust`), existing user saves will 
+     require explicit schema migration logic to avoid overwriting or corruption.
+   - [VERIFIED] `Save.load()` performs `Object.assign(this.data, JSON.parse(raw))`. This creates a 
+     shallow merge; nested structures like `best` and `gear` can lose new default properties.
+   - [VERIFIED] In-chapter checkpoints do not exist. Reloading always restarts the current chapter.
+
+--------------------------------------------------------------------------------
+H. ANDROID AND WEB COMPATIBILITY
+--------------------------------------------------------------------------------
+1. Android Native Shell (`android/app/.../MainActivity.java`) [VERIFIED]:
+   - Security: Zero-permission manifest. No internet socket or network access.
+   - Asset Delivery: Uses `WebViewAssetLoader.AssetsPathHandler` mapping `app/src/main/assets/` 
+     to `https://appassets.androidplatform.net/assets/`. This resolves all modern ES module 
+     CORS and origin restrictions locally.
+   - Hardware Back Button: Managed via AndroidX `OnBackPressedCallback`. Single back press 
+     evaluates `window.odysseyBackPress()` (advances dialogue); double back press within 900ms 
+     finishes the activity (`finish()`).
+   - Android TTS Bridge: Native `AndroidTTS` object bound via `@JavascriptInterface`, allowing 
+     Java `TextToSpeech` execution when Web Speech API is absent or deprioritized.
+   - Lifecycle: `onPause()` calls `web.pauseTimers()` and `web.onPause()`, halting RAF 
+     and background CPU consumption cleanly.
+
+2. Web & PWA Architecture [VERIFIED]:
+   - Offline Service Worker: `sw.js` caches core static assets on install.
+   - PWA Voice Limitation [VERIFIED RISK]: `sw.js` explicitly caches code, css, and fonts, 
+     but does NOT precache the 94 voice clips in `audio/voices/` (total ~3.6MB). In web browser 
+     PWA mode, voice playback falls back to Web Speech API when offline unless clips were 
+     previously cached via background fetch.
+   - Gamepad Support [VERIFIED ABSENCE]: Documented in legacy summaries, but confirmed 100% 
+     absent in engine code. No `navigator.getGamepads()` calls exist.
+
+--------------------------------------------------------------------------------
+I. BUGS AND RISKS SUMMARY TABLE
+--------------------------------------------------------------------------------
+| ID  | Severity | Area | Status | Description |
+|---|---|---|---|---|
+| R01 | High | Input Lifecycle | RESOLVED | Pointer cancellation now calls onPointerCancel/onInputReset on scene and resets engine pointers/axes. |
+| R02 | Medium | UI / Controls | RESOLVED | Added pointer-events: none !important to #touch-controls under body.dlg-open and Stick.reset() on open. |
+| R03 | Medium | Assets | DELIBERATELY RETAINED | Minor code divergence between root js/art.js / sw.js and Android packaged copies kept as baseline. |
+| R04 | Medium | PWA / Audio | VERIFIED | sw.js does not precache audio/voices/*.mp3; causes silent fallback to TTS on first offline web run. |
+| R05 | Low | Engine | VERIFIED | Legacy documentation claimed gamepad support; verified completely missing in source. |
+| R06 | High | Architecture | VERIFIED | No shared movement or combat state classes exist; mechanics are hardcoded in chapter scripts. |
+| R07 | Medium | Persistence | VERIFIED | Save lacks schema version tag and nested migration logic for Phase 4 flags. |
+
+--------------------------------------------------------------------------------
+J. RECOMMENDED TECHNICAL CHANGES (PHASE-BY-PHASE)
+--------------------------------------------------------------------------------
+1. Phase 1 (Shared Foundation & Lifecycle) — COMPLETED & VERIFIED (Phase 1.1):
+   - [RESOLVED R01] In `js/engine.js`: Enhanced `pointercancel` and `pointerleave` listeners to forward
+     cancellation events to the active scene (`scene.onPointerCancel ? scene.onPointerCancel() : scene.onPointerUp()`),
+     and invoke `engine.resetInput()`.
+   - [RESOLVED R01] In `js/scenefw.js`: Added default `onPointerCancel()` and `onInputReset()` hooks to
+     zero out `_holdDir`, `_holdSide`, `holdDir`, and `hold`.
+   - [RESOLVED R01] In `scenes/ch5_straits.js`: Implemented specialized `onPointerCancel()` to release held rhythm
+     notes safely without misjudging them as misses during unexpected interruptions.
+   - [RESOLVED R02] In `styles.css`: Added `pointer-events: none !important;` to `#touch-controls` when
+     `body.dlg-open` is active.
+   - [RESOLVED R02] In `js/engine.js`: Added `Dialogue.active` check in `pointerdown` listener to prevent gameplay
+     scene actions while canvas taps advance dialogue.
+   - [RESOLVED R02] In `js/ui.js` & `js/stick.js`: Added `Stick.reset()` to clear joystick throw and nub
+     visuals when `Dialogue.show()` opens.
+   - [LIFECYCLE] In `js/engine.js`: Updated `setScene(scene)` to invoke input cancellation on outgoing
+     scenes and execute `this.resetInput()` on the engine.
+   - [ASSET SYNC] Synchronised `js/engine.js`, `js/scenefw.js`, `js/stick.js`, `js/ui.js`, `scenes/ch5_straits.js`,
+     and `styles.css` to `android/app/src/main/assets/`. Baseline discrepancies in `js/art.js` and `sw.js` intentionally retained.
+
+2. Phase 2 (Shared Movement Prototype):
+   - Phase 2A (Foundation) — COMPLETED: Created `js/movement.js` providing `MovementController` with decoupled
+     `pixels` and `normalized` coordinate adapters, 1.6x run multiplier, boundary clamping, and `MovementTestScene`
+     development harness (`window.odysseyTestMovement()`). Synchronised to `android/app/src/main/assets/js/movement.js`.
+   - Phase 2B (Vertical & Jump Physics) — VERIFIED: `MovementController` supports
+     grounded/rising/falling states, variable jump height, 100 ms coyote time,
+     100 ms jump buffering, base/elevated one-way platform testing, and throttled
+     test-hazard contact. Browser automation and the final 18-test suite passed;
+     Android asset parity is verified, but native runtime testing remains pending.
+   - Phase 2C.1 (Shared Dodge Foundation) — IMPLEMENTED: `MovementController`
+     owns configurable grounded dodge displacement, independent dodge,
+     invulnerability, and cooldown timers. Chapter integration remains pending.
+   - Create a clean `MovementController` (or extend `ChapterScene` / hero entity) providing 
+     grounded physics, jumping velocity, coyote time (100ms), jump buffer (100ms), and 
+     directional dodge invulnerability (0.18s).
+   - Phase 2C architecture audit (read-only) — COMPLETED: Chapter I and VI retain
+     local dash implementations with inconsistent gating and damage coverage; Chapter
+     III has no dodge. Proposed next implementation is a single MovementController
+     dodge timer/displacement/invulnerability owner, a ChapterScene damage gate, and
+     incremental chapter adapters. No gameplay source files were modified.
+   - Phase 2C.1 implementation — COMPLETED: shared foundation and MovementTestScene
+     lab trigger added. Chapter I, III, and VI remain unchanged; no damage paths
+     consume invulnerability yet.
+   - Phase 2C.1 hit-stop correction — COMPLETED: Engine now forwards an explicit
+     hit-stop flag through ChapterScene to the MovementTestScene controller. Ordinary
+     scene `dt` remains scaled as before, while dodge displacement and its three timers
+     consume zero time on hit-stop frames.
+   - Phase 2C.2 Chapter I integration — IMPLEMENTED: `Ch1Scene` now owns one
+     pixel-space `MovementController` with a 20% screen-width dodge distance.
+     Existing swipe/A-D triggers route through the shared API; club and boulder
+     damage honor only the shared invulnerability window, while missed expose/QTE
+     damage remains intentionally unavoidable. Chapter III and VI are unchanged.
+   - Phase 2C.3 Chapter VI integration — IMPLEMENTED: `Ch6Scene` now owns one
+     normalized-coordinate `MovementController` with the approved 0.13 dodge
+     displacement. Volley, suitor melee, and Antinous lunge damage route through
+     the shared invulnerability gate before armour absorption. Existing A/D and
+     swipe inputs, phase-specific movement bounds, encounter progression, and
+     ending flow remain unchanged. Chapter I and III are unchanged.
+   - Phase 2C.4 controls and regression — IMPLEMENTED: keyboard C/K now route
+     through the existing scene action path as shared dodge requests. The mobile
+     touch rig has a contextual DODGE button that is visible only during Chapter I
+     combat and Chapter VI combat phases, derives direction from the shared joystick
+     axis, and is reset with existing dialogue, focus, cancellation, and scene
+     lifecycle handling. Chapter III and all other chapters remain unchanged.
+
+3. Phase 3 (Combat & Stamina):
+   - Phase 3.1 — STANDALONE FOUNDATION IMPLEMENTED: `js/stamina.js` exports
+     `StaminaSystem` and `STAMINA_DEFAULTS`. Defaults are maximum/initial stamina
+     100, dodge cost 20, heavy attack cost 25, parry cost 12, light attack and
+     movement costs 0, regeneration delay 0.7 seconds, and regeneration rate
+     25 stamina/second. The API provides `current`, `maximum`, `canSpend()`,
+     `spend()`, `spendAction()`, `update()`, `reset()`, and `resetFull()`.
+     Invalid or non-positive delta times are ignored; regeneration is explicitly
+     gated by gameplay-active and hit-stop arguments. The Android counterpart is
+     byte-identical. This module is not yet connected to movement, combat,
+     chapters, HUD, input, or persistence.
+   - Future Phase 3.2+ work may integrate the standalone system with lifecycle
+     and HUD infrastructure after separate approval.
+
+4. Phase 4 (Persistence):
+   - Upgrade `Save` with `version: 2`, backward-compatibility migrators, and fields for 
+     `narrativeFlags`, `checkpoints`, `crewMorale`, and `crewTrust`.
+
+--------------------------------------------------------------------------------
+K. IMPLEMENTATION READINESS EVALUATION
+--------------------------------------------------------------------------------
+- Foundation Stability: High. The engine is lightweight, self-contained, and performant.
+- Readiness for Phase 1 (Input/Lifecycle Stabilization): READY TO PROCEED.
+- Readiness for Phase 2 (Shared Movement): BLOCKED until Phase 1 input stabilization is complete.
+- Overall Risk Profile: LOW. No breaking dependencies or legacy baggage; architecture is 
+  extremely modular.
+
+--------------------------------------------------------------------------------
+L. PROPOSED FILE-LEVEL IMPLEMENTATION PLAN
+--------------------------------------------------------------------------------
+- `js/engine.js`: Add pointercancel propagation; add schema version to `Save`.
+- `js/stick.js`: Add explicit disable/enable method for modal dialogue states.
+- `styles.css`: Enforce `pointer-events: none` on `.dlg-open #touch-controls`.
+- `js/scenefw.js`: Standardise pause/resume lifecycle hooks and cancellation handlers.
+- `android/app/src/main/assets/`: Keep synchronised with root after Phase 1 testing.
+================================================================================
+N. TEAM INTEGRATION STAGE 4B — KEYBOARD INPUT RECONCILIATION
+--------------------------------------------------------------------------------
+- [VERIFIED] Approved keyboard mapping is now implemented in Chapters I, III,
+  V, and VI and the shared touch action labels/routes.
+- [VERIFIED] A/D remain movement-only in Chapters I and VI; C/K remain the
+  shared dodge route; K no longer dispatches spin.
+- [VERIFIED] Imported combat actions use F (parry/guard), R (distinct dash),
+  L (spear), I (spin), U (uppercut), B (bow), and Space/Enter (light slash
+  or contextual action). No heavy-attack handler exists, so H was not added.
+- [VERIFIED] Chapter V uses Space/Enter for rhythm strikes while W/S remain
+  steering input. Chapter III no longer enables the generic combat cluster;
+  its contextual Space/Enter interactions remain.
+- [VERIFIED] Shift no longer dispatches dash or dodge in Chapters I, III, or
+  VI. The movement-test-only Shift run and J dodge behaviour remain isolated.
+- [POTENTIAL] Browser and physical Android runtime verification after this
+  change remains outstanding. Root/Android source parity and JavaScript syntax
+  were checked.
+- [VERIFIED] `js/stamina.js` and its Android counterpart remain unchanged,
+  standalone, and unintegrated.
+
+--------------------------------------------------------------------------------
+O. STAGE 4B.1 — CAMPAIGN RUNNING INTEGRATION
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter I enables the existing MovementController run capability
+  during the Cyclops fight. Shift is passed as `shiftRun`; stealth movement
+  remains the pre-existing direct movement path and is unchanged.
+- [VERIFIED] Chapter VI enables the existing run capability during volley,
+  suitor-wave, and Antinous-duel movement phases. Shift is passed to the shared
+  controller, and the existing volley movement contribution uses the same
+  1.6 multiplier so the effective walking-to-running ratio remains exact.
+- [VERIFIED] Walking remains the default. Shift does not dispatch an action;
+  R remains dash and C/K remain shared dodge.
+- [VERIFIED] The MovementController dodge timings, invulnerability, cooldown,
+  jump physics, and hit-stop handling were not changed.
+- [POTENTIAL] Browser and physical Android runtime verification remain
+  outstanding. Syntax, diff, root/Android parity, and static speed-ratio
+  checks passed.
+- [VERIFIED] Chapter III and scenes without suitable MovementController
+  campaign integration remain unchanged. Stamina remains standalone and
+  unintegrated.
+--------------------------------------------------------------------------------
+P. TEAM INTEGRATION STAGE 4C — MOBILE TOUCH LIFECYCLE AND INPUT SAFETY
+--------------------------------------------------------------------------------
+- [VERIFIED] `js/stick.js` now has explicit interactivity gating. Dialogue,
+  screen/update-lock, scene-reset, blur, and document visibility-loss paths
+  prevent touch gameplay dispatch rather than relying on opacity.
+- [VERIFIED] Joystick axes and nub visuals, pressed action-button styling, and
+  active action pointers are cleared by `Stick.reset()`. Pointer ownership is
+  tracked per button, so joystick plus action-button multi-touch remains
+  independent and a cancelled pointer cannot trigger a later action.
+- [VERIFIED] Engine reset broadcasts the existing lifecycle reset to the touch
+  rig. Dialogue disables controls on open and restores them only when gameplay
+  is active. Chapter controls are not re-enabled until chapter intro/transition
+  work completes.
+- [VERIFIED] Chapter I and VI continue to own combat-cluster and dodge
+  visibility by combat phase. Chapter III continues to disable the generic
+  combat cluster. Bow visibility continues to use gear ownership plus scene
+  refresh calls. Chapter V rhythm input was not changed.
+- [VERIFIED] Root and Android copies of `js/stick.js`, `js/engine.js`,
+  `js/ui.js`, and `js/main.js` are byte-identical after Stage 4C changes.
+- [VERIFIED] JavaScript syntax, diff checks, a temporary touch lifecycle
+  harness, and browser lifecycle-gate checks passed.
+- [POTENTIAL] Full chapter traversal with physical touch gestures and native
+  Android WebView lifecycle testing remain outstanding.
+--------------------------------------------------------------------------------
+Q. STAGE 4D.1 — TECHNICAL REGRESSION FIXES
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter IV ghost-spawn, Tiresias, and Achilles reward VFX now use
+  the Engine's uppercase `W` dimension property. Their coordinate expressions
+  remain in the existing Canvas coordinate system; progression, dialogue,
+  rewards, and transitions were not changed.
+- [VERIFIED] Chapter V rhythm judgment and strait collision VFX now use the
+  Engine's uppercase `W` and `H` properties. The six-crew-loss result remains
+  explicitly fixed at `lost: 6`.
+- [VERIFIED] Bow availability is now scene-owned through `Stick.setBowAvailable`
+  and additionally requires equipped bow ownership, active gameplay, and
+  interactive input. Global keyboard B and the touch BOW button share the
+  `Stick.canUseBow()` gate.
+- [VERIFIED] Chapter I enables bow input only during the Cyclops fight and
+  clears it during cleanup, victory, and all non-fight states. Chapter VI
+  enables bow input for volley, suitor waves, and the Antinous duel, and clears
+  it during cleanup and victory. Other chapters never enable it.
+- [VERIFIED] Root and Android copies of all modified scene and shared files are
+  byte-identical. JavaScript syntax and diff checks passed.
+- [POTENTIAL] Full chapter browser traversal and physical Android WebView
+  validation remain outstanding because the mandatory updater gate blocks
+  gameplay launch and no native runtime was used.
+--------------------------------------------------------------------------------
+R. STAGE 4D.2 — CHAPTER III NARRATIVE CONTINUITY
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter III now keeps Eurylochus untransformed. His intro
+  dialogue explicitly states that he avoided the hall, escaped Circe's spell,
+  and returned to report what happened to Odysseus.
+- [VERIFIED] The three transformed crew members are now Polites, Elpenor, and
+  Perimedes. Elpenor is already an established crew member and his later
+  Underworld appearance remains coherent because the chapter can rescue him
+  before his subsequent death.
+- [VERIFIED] The existing three pig slots, three rescue counter, potion
+  recipes, invalid-recipe inventory restoration, contextual-only controls,
+  Circe trial, rewards, and chapter completion threshold were unchanged.
+- [VERIFIED] Root and Android Chapter III scene files are byte-identical.
+- [POTENTIAL] Full browser chapter traversal and physical Android WebView
+  testing remain outstanding.
+--------------------------------------------------------------------------------
+S. TEAM INTEGRATION STAGE 4E — CHAPTER III RECONCILIATION AND MAIN MERGE
+--------------------------------------------------------------------------------
+- [VERIFIED] Local integration merge commit
+  4ba1e8cb1595544bfd6e9f2574b2dd808f618d8b has parents
+  a5b8de153decca73a6b8a9de6a4f5bb698fd6cc4 (integration) and
+  61ae19f2b64c21ae530334df90f02df2c74bcdac (origin/main). The branch was not
+  pushed and main was not modified.
+- [VERIFIED] The only merge conflicts were the root and Android Chapter III
+  scenes. They were resolved manually by combining main's palace, Moly,
+  Cauldron, beast health, contextual sword encounter, and compatible progression
+  with integration's ingredient gathering, recipe bench, restoration behavior,
+  Clarifying Draught, and scripted finale.
+- [VERIFIED] Eurylochus remains the reporter and is not transformed. Exactly
+  Polites, Elpenor, and Perimedes occupy the three rescue slots; completion is
+  still gated by three successful rescues.
+- [VERIFIED] Rescue prioritizes a carried Clarifying Draught and otherwise uses
+  one Moly Elixir charge; when neither applies, an already carried recipe
+  potion retains the integration branch's existing rescue behavior. Failed
+  rescues do not consume a potion or increment progress. Repeated successful
+  rescue actions cannot increment a cured slot.
+- [VERIFIED] Chapter III leaves the generic combat cluster disabled and hides
+  dodge during initialization and cleanup. C/K dodge dispatch and other
+  unsupported generic actions have no Chapter III combat effect. Space/Enter
+  and ACT share contextual routing; only the contextual basic slash can damage
+  beasts. W/gy are not referenced by that action handler.
+- [VERIFIED] Nearby pig rescue precedes the hall bench; the Cauldron has a
+  separate nearby action button and yields to a nearby uncured pig or an open
+  bench. Root and Android Chapter III scene files are byte-identical.
+- [VERIFIED] Main's Chapter IV, paired art, and tracked APK changes were merged.
+  Root/Android Chapter IV and art pairs remain synchronized. `sw.js` and the
+  root/Android `version.json` OTA manifests are unchanged; the main manifest
+  version bump was excluded under the no-manifest-change restriction.
+- [VERIFIED] Both Chapter III files pass `node --check`; focused source and
+  isolated rescue/brew behavior assertions pass; `git diff --check` passed
+  before commit. No repository test suite was found.
+- [POTENTIAL] Browser gameplay and physical Android WebView runtime validation
+  remain outstanding. The merged APK was not rebuilt or installed.
+--------------------------------------------------------------------------------
+T. TEAM INTEGRATION STAGE 4E.1 — CHAPTER III COMBAT ISOLATION AND FINALE LIFECYCLE
+--------------------------------------------------------------------------------
+- [VERIFIED] `scenes/ch3_circe.js` no longer imports or calls the shared
+  `Cinematic` combat presentation API. Its contextual sword action keeps the
+  25-point beast damage and defeat reward while drawing a short local slash
+  pose and spawning visual-only PixelVFX effects without automatic hit logic.
+- [VERIFIED] The finale's 800 ms timeout is stored, cleared in cleanup, and
+  guarded against inactive, completed, or replaced scenes. Asynchronous finale
+  continuations check the active scene after dialogue and before invoking
+  chapter progression.
+- [VERIFIED] Contextual Space/Enter/ACT input, unsupported generic-action
+  rejection, generic combat cluster disablement, hidden dodge, and the approved
+  potion rescue order remain in place. Root and Android Chapter III scenes are
+  byte-identical.
+- [VERIFIED] Both scene files pass `node --check`; focused extracted-method
+  checks for sword, rescue, input, timer cancellation, and stale callback
+  behavior passed; `git diff --check` passed.
+- [POTENTIAL] These isolated source checks do not replace full browser or
+  physical Android WebView gameplay validation, which remains pending.
+--------------------------------------------------------------------------------
+U. TEAM INTEGRATION STAGE 4E.2 — CHAPTER III SWORD IMPACT FEEDBACK
+--------------------------------------------------------------------------------
+- [VERIFIED] Git history and the prior `Cinematic.performMove("slash")` path
+  establish the PixelVFX hit event at 0.06 seconds. The wrapper converts its
+  `stop: 0.14` to `Engine.hitStop(0.105)` and `amp: 2` to
+  `Engine.shake(1.0)`.
+- [VERIFIED] Chapter III now schedules those calls 60 ms after a successful
+  living-beast strike. Misses do not schedule them; each timer has a one-shot
+  guard and is cancelled during cleanup. The 25 damage and defeat reward path
+  remain unchanged.
+- [VERIFIED] The historical hit metadata's `shake: 0.18` is not consumed by
+  PixelVFX's actual wrapper. `Engine.shake(1.0)` has no finite duration and is
+  reset on scene replacement. No new duration was invented.
+- [VERIFIED] Root/Android scene parity, both syntax checks, focused actual-class
+  fake-timer checks, and `git diff --check` passed. No shared combat API or
+  global PixelVFX behavior was changed.
+- [POTENTIAL] Browser and physical Android gameplay validation remain pending.
+--------------------------------------------------------------------------------
+V. TEAM INTEGRATION STAGE 4E.3 — CHAPTER III FINITE IMPACT SHAKE
+--------------------------------------------------------------------------------
+- [VERIFIED] `Engine.shake()` raises the camera amplitude without a duration;
+  `Engine.setScene()` resets camera shake and hit-stop. No global engine change
+  was made.
+- [VERIFIED] The 0.18 second duration is an implemented PixelFX convention:
+  `createAct()` assigns `h.shake` to its shake countdown and returns an
+  amplitude scaled by remaining-time ratio. The sword-slash hit specifies 0.18.
+- [VERIFIED] Chapter III now fades the impact contribution linearly from
+  amplitude 1.0 over 180 ms to its pre-impact shake baseline, preserving the
+  immediate 0.7 shake. Cleanup cancels pending impact timers and restores an
+  active impact pulse's baseline when the scene is still current.
+- [VERIFIED] Fake-clock checks cover the 60 ms onset, the 180 ms fade, miss and
+  duplicate suppression, cleanup, scene replacement, 25 damage and defeat
+  reward. Syntax, root/Android parity, and `git diff --check` pass.
+- [POTENTIAL] Browser and physical Android gameplay validation remain pending.
+--------------------------------------------------------------------------------
+W. TEAM INTEGRATION STAGE 4E.4 — CHAPTER III SHAKE OWNERSHIP
+--------------------------------------------------------------------------------
+- [VERIFIED] Engine's max-only `shake()` can hide a weaker shake request that
+  arrives while the Chapter III impact pulse is stronger. Chapter III's local
+  `sceneShake()` records such requests as the new baseline; stronger requests
+  update both baseline and peak, preventing pulse expiry from restoring stale
+  camera state.
+- [VERIFIED] Cleanup restores pulse state only while its Chapter III instance
+  is still the engine's current scene. A replacement scene's shake is not
+  reset. Duplicate impact callbacks remain one-shot.
+- [VERIFIED] A deterministic actual-class fake-clock harness passed overlap,
+  cleanup, replacement ownership, miss, duplicate, damage, and reward cases.
+  Root/Android parity passed. JavaScript syntax checks and `git diff --check`
+  passed before integration.
+- [POTENTIAL] Browser and physical Android gameplay validation remain pending.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+X. LATEST MAIN INTEGRATION — CHAPTER III PRESERVATION
+--------------------------------------------------------------------------------
+- [VERIFIED] Latest fetched references are origin/main
+  ddea17a9495bf9df09e9a7e8c1377d7e371d33b7 and integration remote
+  a5b8de153decca73a6b8a9de6a4f5bb698fd6cc4. The normal merge has been
+  reconciled locally.
+- [VERIFIED] Latest main's Chapter III scene conflicts with approved integration
+  behavior: its roster includes Eurylochus, it omits the ingredient recipe/bench
+  rescue flow, and it routes attacks through shared generic combat. The local
+  approved Chapter III implementation is retained in root and Android.
+- [VERIFIED] Merge conflict reconciliation retains main's title-screen and
+  updater changes and the incoming v1.2.6/build 8 manifest values. Integration
+  touch/dialogue gating and Chapter VI controller routing are retained alongside
+  compatible main Chapter VI changes.
+- [VERIFIED] Root and Android JS syntax checks, actual-class fake-clock Chapter III
+  behavior tests, root/Android Chapter III and paired-source parity, and
+  `git diff --check` passed. No existing automated test suite was found.
+- [LIMITATION] Browser gameplay and physical Android runtime validation are not
+  performed by this integration source review.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Y. PR #1 REVIEW — CHAPTER I AND VI DUPLICATE MOVEMENT FIXES
+--------------------------------------------------------------------------------
+- [VERIFIED] Chapter VI `tickVolley()` previously called
+  `updatePlayerMovement()` and then applied the same `_holdDir + axisX` input
+  again, with another 1.6 run multiplier. The duplicate direct path is removed;
+  volley, wave and duel movement now each use the existing controller once.
+- [VERIFIED] Chapter VI controller update continues to receive `hitStop`, uses
+  normalized coordinates and the phase-specific boundaries. Controller run
+  applies the configured 1.6 multiplier once. Dodge remains controller-owned.
+- [VERIFIED] Chapter I `dodge()` previously started a 0.20 × `engine.W` timed
+  controller dodge and immediately added a second 0.19 × `engine.W` jump.
+  The direct adjustment is removed. The controller supplies the full timed
+  displacement, while `tickFight()` continues to clamp movement between 6% of
+  screen width and the boss's near boundary.
+- [VERIFIED] Four deterministic tests execute the actual MovementController,
+  `Ch6Scene.tickVolley()`, `Ch1Scene.dodge()` and `Ch1Scene.tickFight()`. They
+  cover per-frame movement count, one-time run scaling, hit-stop freeze during
+  dodge, dodge distance over time, cooldown, invulnerability and arena clamp.
+  All four passed.
+- [VERIFIED] Root/Android Chapter I and VI pairs are byte-identical. All root
+  and Android JavaScript syntax checks, focused tests and `git diff --check`
+  passed.
+- [LIMITATION] Tests are deterministic source-level scene/controller tests;
+  browser and physical Android WebView runtime behavior was not exercised.
+--------------------------------------------------------------------------------

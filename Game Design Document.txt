@@ -1,0 +1,1060 @@
+# ODYSSEY
+## Game Design Document (GDD)
+
+**Project:** ODYSSEY  
+**Version:** 1.0 — Redesign Specification  
+**Design baseline:** Existing release `v1.0.0`  
+**Repository:** https://github.com/SwarupRock/ODYSSEY  
+**Genre:** 2D Cinematic Action-Adventure  
+**Platform:** Android and Web  
+**Status:** Design approved; implementation pending
+
+---
+
+# 1. Game Overview
+
+## 1.1 Concept
+
+ODYSSEY is a mythological 2D action-adventure game inspired by Homer's *The Odyssey*. Players control Odysseus, the legendary King of Ithaca, as he attempts to return home following the Trojan War.
+
+The journey takes him through dangerous islands, supernatural encounters, divine interventions and difficult decisions. His greatest challenges are not only the monsters he faces, but also his pride, leadership and ability to protect those who follow him.
+
+The redesigned game will expand the existing experience into a cinematic adventure with more meaningful exploration, combat, equipment progression and narrative consequences.
+
+## 1.2 Design Vision
+
+Create a visually distinctive, story-driven adventure that combines:
+
+- Cinematic 2D environments and storytelling.
+- Fluid, responsive combat.
+- Exploration and environmental interaction.
+- Mythological encounters and challenging boss sequences.
+- Meaningful character and equipment progression.
+- Decisions that influence dialogue, hubris and the ending.
+- A narrative that respects the central events of the original Odyssey.
+
+## 1.3 Core Design Pillars
+
+**1. A legendary journey**
+
+Every chapter should feel like a distinct stage of Odysseus's journey, with its own atmosphere, gameplay identity and narrative purpose.
+
+**2. Combat with purpose**
+
+Combat should reward timing, positioning, dodging, parrying and situational abilities rather than button-mashing.
+
+**3. Exploration and discovery**
+
+Players should have opportunities to explore interconnected environments, discover useful items and learn about the world.
+
+**4. Choices and consequences**
+
+Odysseus's decisions should influence hubris, relationships, dialogue and the presentation of the final outcome.
+
+**5. Mythological authenticity**
+
+Preserve important events, characters and consequences from Homer's Odyssey while introducing new gameplay sequences where they fit naturally.
+
+---
+
+# 2. Target Experience
+
+## 2.1 Gameplay Style
+
+The game follows a cinematic 2D action-adventure structure.
+
+The player progresses through interconnected environments, completing objectives, fighting enemies, interacting with characters and experiencing story sequences.
+
+Not every chapter should use the same gameplay formula. Exploration, stealth, sailing, alchemy, puzzles, rhythm challenges and combat should be distributed according to each chapter's narrative.
+
+## 2.2 Difficulty
+
+The intended difficulty is moderate to challenging.
+
+- Basic enemies should be approachable.
+- Enemy attacks should have readable telegraphs.
+- Bosses should require learning patterns and exploiting openings.
+- Recovery should be fair and should avoid unnecessarily repeating completed sections.
+- Optional challenges should reward exploration and mastery.
+
+## 2.3 Estimated Game Length
+
+Proposed chapter durations:
+
+| Section | Estimated duration |
+|---|---:|
+| Prologue — The Fall of Troy | 8–12 min |
+| Chapter I — Polyphemus's Cave | 15–20 min |
+| Chapter II — The Bag of Winds | 15–20 min |
+| Chapter III — Circe's Island | 15–20 min |
+| Chapter IV — The Underworld | 15–20 min |
+| Chapter V — Sirens, Scylla & Charybdis | 15–20 min |
+| Chapter VI — Return to Ithaca | 20–25 min |
+
+**Estimated total:** Approximately 103–137 minutes of main gameplay.
+
+These are design targets, not measured playtest results.
+
+---
+
+# 3. Narrative Structure
+
+The game contains seven playable sections: a Prologue and six numbered chapters.
+
+## 3.1 Prologue — The Fall of Troy
+
+**Narrative purpose:** Establish Odysseus as a warrior and introduce the consequences of pride and war.
+
+**Gameplay identity:** Tutorial, exploration and introductory combat.
+
+### Story
+
+The Trojan War ends with the Greeks victorious. The Trojan Horse has brought destruction to Troy, and Agamemnon's army marches through the burning city.
+
+Odysseus witnesses the destruction and prepares to depart with his men.
+
+### Proposed gameplay
+
+1. Cinematic introduction featuring the Trojan Horse.
+2. Dialogue between Agamemnon and Odysseus.
+3. Playable escape through the burning city.
+4. Introductions to movement, jumping, interaction and combat.
+5. Encounters with Trojan soldiers, spear guards and archers.
+6. Optional encounter with an elite Trojan Captain.
+7. Departure towards the island of the Cyclops.
+
+### Player decisions
+
+- Help a wounded Greek soldier or continue towards the harbour.
+- Pursue the optional Trojan Captain or avoid unnecessary combat.
+
+Choices influence hubris and later dialogue.
+
+### Design targets
+
+- Duration: 8–12 minutes.
+- Optional elite encounter; no mandatory boss.
+- Introduce fundamental movement and combat mechanics.
+
+## 3.2 Chapter I — Polyphemus's Cave
+
+**Narrative purpose:** Introduce Odysseus's cleverness, survival instincts and growing pride.
+
+**Gameplay identity:** Exploration, stealth and a major boss encounter.
+
+### Story
+
+Odysseus and his crew explore an unfamiliar island and discover the cave of Polyphemus, a monstrous Cyclops.
+
+The crew becomes trapped, forcing Odysseus to devise a way to escape.
+
+### Proposed gameplay
+
+1. Explore the shore and surrounding pastures.
+2. Discover Polyphemus's cave.
+3. Sneak through the cave using cover, visibility and sound.
+4. Gather materials and prepare the olive stake.
+5. Use the identity of "Nobody" as part of the deception.
+6. Fight Polyphemus through multiple attack phases.
+7. Blind the Cyclops and escape beneath the sheep.
+8. Reach the ship and escape the island.
+
+### Combat design
+
+Polyphemus uses:
+- Club sweeps.
+- Ground slams.
+- Boulders and environmental attacks.
+- Grabs and close-range threats.
+- Blind-rage attacks after being injured.
+
+The encounter is challenging, followed by a separate playable escape sequence.
+
+### Narrative consequence
+
+Odysseus's eventual revelation of his identity must preserve the central mythological consequence: Polyphemus calls upon Poseidon, setting the stage for further suffering.
+
+Player choices can influence how much Odysseus boasts and how the moment is presented, but should not simply remove this foundational event.
+
+### Design targets
+
+- Duration: 15–20 minutes.
+- Moderate exploration.
+- Core stealth mechanics.
+- One major boss.
+
+## 3.3 Chapter II — The Bag of Winds
+
+**Narrative purpose:** Explore leadership, trust, exhaustion and the consequences of mistrust.
+
+**Gameplay identity:** Hybrid sailing, survival and crew management.
+
+### Story
+
+Aeolus gives Odysseus a sealed bag containing the world's winds, warning him not to open it.
+
+Odysseus attempts to sail home while his exhausted crew becomes suspicious of the mysterious bag.
+
+### Proposed gameplay
+
+1. Explore Aeolus's island and receive the bag.
+2. Begin an active sailing sequence.
+3. Steer and adjust sails in response to wind conditions.
+4. Manage ship integrity and crew morale.
+5. Experience crew-related events and interactions.
+6. Survive a major storm.
+7. Manage the crew's growing temptation while Odysseus becomes exhausted.
+8. The crew opens the bag while Odysseus sleeps.
+9. The escaped winds drive the ship away from Ithaca towards Aeaea.
+
+### Gameplay systems
+
+**Hybrid sailing**
+- Active ship steering.
+- Sail adjustment.
+- Environmental navigation.
+- Wind direction and changing conditions.
+
+**Crew influence**
+- Morale and trust.
+- Crew commands.
+- Dialogue and leadership decisions.
+- Important interactions with Eurylochus.
+
+**Ship condition**
+- Hull integrity.
+- Sail condition.
+- Environmental damage.
+
+The systems should remain understandable and avoid excessive management complexity.
+
+### Failure handling
+
+Use story-driven recovery. Damage and setbacks should matter, but failure should not repeatedly force the player to restart the entire chapter.
+
+### Canonical event
+
+The crew opening the bag while Odysseus sleeps remains an essential mythological event.
+
+### Design targets
+
+- Duration: 15–20 minutes.
+- Hybrid sailing.
+- Meaningful crew influence.
+- No mandatory boss.
+
+## 3.4 Chapter III — Circe's Island
+
+**Narrative purpose:** Explore magic, preparation, cleverness and Odysseus's responsibility towards his crew.
+
+**Gameplay identity:** Exploration, tactical alchemy and magical trials.
+
+### Story
+
+Odysseus arrives on Aiaia, where Circe has transformed several members of his crew into pigs.
+
+With help from Hermes and the protective herb moly, Odysseus must overcome Circe's enchantments and restore his men.
+
+### Proposed gameplay
+
+1. Explore the coastline, forest, ruins and Circe's hall.
+2. Encounter guardian beasts.
+3. Discover the transformed crewmen: Polites, Eurylochus and Perimedes.
+4. Receive moly from Hermes.
+5. Gather ingredients and discover recipes.
+6. Brew tactical counter-potions.
+7. Face Circe's magical trial.
+8. Restore the crew and negotiate with Circe.
+9. Receive her gifts and learn about the Underworld.
+
+### Tactical alchemy
+
+Expand the existing ingredient system into a more meaningful crafting mechanic.
+
+Proposed potion categories:
+- Clarifying Draught: counters enchantments and illusions.
+- Warm Honey Tea: restores health.
+- Salt-Bright Tonic: improves resistance to magical effects.
+- Moly Elixir: temporarily strengthens magical protection.
+
+Potion carrying capacity should be limited, requiring preparation before encounters.
+
+### Circe encounter
+
+Circe should not simply become another conventional boss.
+
+The proposed magical trial includes:
+- Illusions and misleading paths.
+- Enchantments and magical attacks.
+- Moly-based counterplay.
+- Tactical use of prepared potions.
+- A dramatic final confrontation.
+
+### Progression rewards
+
+Retain Circe's existing story rewards:
+- Moly-tempered sword.
+- Aegis half-cape.
+
+### Design targets
+
+- Duration: 15–20 minutes.
+- Moderate exploration.
+- Tactical alchemy.
+- One major magical trial.
+
+## 3.5 Chapter IV — The Underworld
+
+**Narrative purpose:** Explore mortality, pride, memory and the consequences of Odysseus's actions.
+
+**Gameplay identity:** Exploration, puzzles, supernatural encounters and combat.
+
+### Story
+
+Following Circe's instructions, Odysseus travels to the Underworld to seek Tiresias and learn the path home.
+
+He encounters the spirits of people from his past before receiving the prophet's warning.
+
+### Proposed gameplay
+
+1. Arrive at the shore of the dead.
+2. Perform the blood offering ritual.
+3. Explore the Asphodel road.
+4. Encounter the spirits of Elpenor, Anticleia, Agamemnon and Achilles.
+5. Solve supernatural environmental puzzles.
+6. Face hostile shades and supernatural guardians.
+7. Complete a major supernatural trial.
+8. Meet Tiresias and receive his prophecy.
+9. Leave the Underworld with knowledge and equipment.
+
+### Spirit encounters
+
+**Elpenor:** Requests burial so his spirit can rest.
+
+**Anticleia:** Reveals the emotional cost of Odysseus's long absence.
+
+**Agamemnon:** Warns about betrayal and the dangers of returning home.
+
+**Achilles:** Reflects on the value of life compared with glory.
+
+### Tiresias's trial
+
+Before receiving the full prophecy, Odysseus must overcome a supernatural challenge involving:
+- Illusions shaped by memories and guilt.
+- Environmental puzzles.
+- Combat against a supernatural guardian.
+- Strategic use of equipment and abilities.
+
+### Prophecy
+
+Tiresias warns Odysseus about:
+- The cattle of the Sun.
+- The dangers of pride.
+- The difficult return to Ithaca.
+- The fate awaiting his crew.
+
+Dialogue choices influence hubris and later narrative presentation.
+
+### Progression rewards
+
+Retain:
+- Armor of Achilles.
+- Sword of Hector.
+
+### Design targets
+
+- Duration: 15–20 minutes.
+- Moderate exploration.
+- Hybrid gameplay.
+- One major supernatural trial.
+
+## 3.6 Chapter V — Sirens, Scylla & Charybdis
+
+**Narrative purpose:** Demonstrate the limits of control and the terrible cost of survival.
+
+**Gameplay identity:** Rhythm-based psychological survival and cinematic navigation.
+
+### Act I — The Sirens
+
+Odysseus is tied to the mast while the crew protects itself from the Sirens' song.
+
+Proposed gameplay:
+- Retain rhythm-based note tapping and holding.
+- Introduce psychological illusions.
+- Use memories, ambitions and desires to tempt Odysseus.
+- Increase rhythm complexity over successive verses.
+- Use failure recovery without restarting the entire chapter.
+
+The Sirens should challenge both the player's timing and Odysseus's mental resistance.
+
+### Act II — Scylla and Charybdis
+
+Odysseus must navigate a narrow passage between two impossible threats.
+
+Proposed gameplay:
+- Improve the existing steering system.
+- Introduce environmental hazards and changing currents.
+- Show Scylla attacking from the cliffs.
+- Show Charybdis threatening the ship through the whirlpool.
+- Introduce cinematic action-survival moments.
+- Allow crew members to assist with emergency actions.
+
+Scylla and Charybdis should remain environmental and mythological threats rather than conventional boss fights.
+
+### The six crew losses
+
+Six crewmen must be lost to Scylla. This outcome remains fixed.
+
+However, player performance and previous decisions influence:
+- The circumstances of the losses.
+- Ship damage and the severity of the escape.
+- The reactions of surviving crew.
+- Dialogue and emotional consequences.
+
+The six losses should not be presented as an arbitrary numerical penalty.
+
+### Aftermath
+
+End with an emotional sequence showing the surviving crew and Odysseus confronting the cost of survival.
+
+### Design targets
+
+- Duration: 15–20 minutes.
+- Two major gameplay acts.
+- Two major mythological threats.
+- Six fated crew losses.
+
+## 3.7 Chapter VI — Return to Ithaca
+
+**Narrative purpose:** Resolve Odysseus's journey, his relationship with his family and the consequences of his pride.
+
+**Gameplay identity:** Exploration, stealth, deception and a climactic palace battle.
+
+### Story
+
+Odysseus finally reaches Ithaca, but his home has been occupied by suitors who consume his wealth and pursue Penelope.
+
+He returns disguised as a beggar and prepares to reclaim his kingdom.
+
+### Proposed gameplay
+
+1. Explore Ithaca's harbour, village outskirts, palace grounds and surrounding areas.
+2. Discover how the kingdom has changed.
+3. Return to the palace disguised as a beggar.
+4. Gather information and identify allies.
+5. Prepare for the confrontation.
+6. Experience Penelope's bow challenge.
+7. Reveal Odysseus's identity.
+8. Fight the suitors.
+9. Duel Antinous.
+10. Complete Penelope's bed-test.
+11. Experience the final ending.
+
+### Palace battle
+
+**Act I — The Volley**
+
+Dodge incoming projectiles and neutralise ranged attackers.
+
+**Act II — The Suitors**
+
+Fight waves of enemies using swordplay, dodging, bow attacks and equipment abilities.
+
+**Act III — Antinous**
+
+Fight the central antagonist through a challenging multi-phase duel.
+
+### Penelope's test
+
+Preserve the bed secret: Odysseus explains that their marriage bed was built around a living olive tree and cannot be moved.
+
+This remains the emotional climax of the homecoming.
+
+### Endings
+
+Retain the canonical homecoming while expanding its variations.
+
+Factors influencing the final presentation:
+- Hubris.
+- Earlier choices.
+- Crew losses.
+- Crew relationships.
+- Combat performance.
+- Equipment progression.
+
+The existing two hubris-based ending foundation should be retained and expanded rather than discarded.
+
+### Design targets
+
+- Duration: 20–25 minutes.
+- Moderate exploration.
+- Hybrid stealth and combat.
+- One major boss: Antinous.
+- Multiple ending presentations and narrative variations.
+
+---
+
+# 4. Core Gameplay Systems
+
+## 4.1 Movement
+
+The redesigned movement system should provide consistent controls across chapters.
+
+Proposed actions:
+- Walk and run.
+- Jump.
+- Dodge or dash.
+- Interact.
+- Contextual movement and traversal.
+
+Movement should feel responsive and consistent across keyboard, touch and Android controls.
+
+## 4.2 Combat
+
+The combat system should be balanced and moderately deep.
+
+### Basic combat
+- Light attacks.
+- Heavy attacks or contextual strikes.
+- Directional attacks where appropriate.
+- Dodge and repositioning.
+- Parry or timed defensive actions.
+
+### Advanced combat
+- Short attack combos.
+- Perfect-timing opportunities.
+- Situational abilities.
+- Weapon-specific effects.
+- Armour and equipment bonuses.
+
+Avoid an unnecessarily large skill tree.
+
+### Enemy design
+
+Enemies should have:
+- Recognisable silhouettes.
+- Readable attack telegraphs.
+- Distinct movement patterns.
+- Clear vulnerabilities.
+- Appropriate difficulty scaling.
+
+Grounded human enemies should contrast with more fantastical mythological creatures.
+
+## 4.3 Boss Design
+
+Bosses should be challenging but fair.
+
+Each major boss should feature:
+- A distinctive introduction.
+- Multiple attack patterns.
+- Telegraphs and recovery windows.
+- Phase changes where appropriate.
+- A memorable defeat sequence.
+- Story consequences.
+
+Planned major encounters:
+
+| Section | Encounter |
+|---|---|
+| Prologue | Optional Trojan Captain |
+| Chapter I | Polyphemus |
+| Chapter II | No mandatory boss |
+| Chapter III | Circe's magical trial |
+| Chapter IV | Supernatural trial guardian |
+| Chapter V | Sirens, Scylla and Charybdis as set pieces |
+| Chapter VI | Antinous |
+
+Optional encounters must be added selectively. Do not force a conventional boss into every chapter.
+
+## 4.4 Stealth
+
+Introduce a consistent stealth framework.
+
+Potential mechanics:
+- Enemy visibility.
+- Sound and noise.
+- Cover and hiding places.
+- Patrol patterns.
+- Alert states.
+- Contextual takedowns or distractions.
+
+Stealth should be especially important in Chapter I and Chapter VI.
+
+## 4.5 Exploration
+
+Exploration should reward players without creating excessive backtracking.
+
+Potential discoveries:
+- Ingredients.
+- Equipment upgrades.
+- Story fragments.
+- Optional dialogue.
+- Hidden locations.
+- Environmental clues.
+
+---
+
+# 5. Progression and Equipment
+
+## 5.1 Progression Philosophy
+
+Use a hybrid progression model.
+
+The story unlocks important equipment, while players choose what to equip.
+
+Progression should not depend on an overwhelming skill tree.
+
+## 5.2 Equipment
+
+Important existing and proposed equipment:
+
+**Weapons**
+- Sword of Hector.
+- Moly-tempered sword.
+- Great Bow of Odysseus.
+
+**Armour**
+- Armor of Achilles.
+- Aegis half-cape.
+
+The equipment system should preserve the narrative significance of legendary items.
+
+## 5.3 Equipment Effects
+
+Proposed attributes:
+- Attack power.
+- Attack reach.
+- Defensive strength.
+- Special combat effects.
+- Bow effectiveness.
+
+Different equipment combinations should encourage different combat approaches.
+
+## 5.4 Character Evolution
+
+Odysseus's appearance should evolve throughout the story.
+
+Three broad stages:
+
+1. Trojan Warrior — experienced soldier, equipped for war.
+2. Cursed Wanderer — weathered, scarred and changed by the journey.
+3. Legendary King — returns to Ithaca as a battle-hardened leader.
+
+Equipment and visual details should reflect the player's progression.
+
+---
+
+# 6. Character Design
+
+## 6.1 Odysseus
+
+Design direction:
+- Mature, battle-hardened Greek warrior.
+- Athletic but believable proportions.
+- Dark brown medium-length wavy hair.
+- Short rugged beard.
+- Visible scars and signs of travel.
+- Greek-inspired bronze and leather equipment.
+
+Visual evolution:
+- Burgundy cloak during the early journey.
+- Increasingly weathered clothing and equipment.
+- Deeper teal and gold accents towards the end.
+
+His character should express intelligence, pride, determination and emotional vulnerability.
+
+## 6.2 Supporting Characters
+
+Important characters:
+- Agamemnon.
+- Polyphemus.
+- Aeolus.
+- Eurylochus.
+- Polites.
+- Perimedes.
+- Circe.
+- Hermes.
+- Elpenor.
+- Anticleia.
+- Achilles.
+- Tiresias.
+- Penelope.
+- Antinous.
+
+Character dialogue should preserve individual personalities and relationships.
+
+## 6.3 Enemy Art Direction
+
+Use a hybrid approach:
+- Grounded designs for human enemies.
+- Fantastical mythological designs for monsters.
+- Strong silhouettes and readable attacks.
+- Distinct movement and combat identities.
+
+---
+
+# 7. Art Direction and Visual Identity
+
+## 7.1 Overall Direction
+
+**Style:** Cinematic 2D action-adventure with detailed illustrated and painterly environments.
+
+Visual priorities:
+- Layered backgrounds.
+- Atmospheric lighting.
+- Natural shadows.
+- Weathered surfaces.
+- Expressive character animation.
+- Cinematic framing.
+- Distinct palettes for every location.
+
+Avoid generic flat environments and repetitive procedural-looking scenery.
+
+## 7.2 Chapter Palettes
+
+| Location | Visual palette |
+|---|---|
+| Troy | Fire, terracotta, bronze and burgundy |
+| Cyclops island | Stone, muted amber and deep shadows |
+| Aeolia | Aegean blues, sea greens and storm greys |
+| Aiaia | Enchanted greens and magical gold |
+| Underworld | Cold blues, grey and violet |
+| Sirens and straits | Rose dusk, abyssal blue and dark stone |
+| Ithaca | Warm Mediterranean gold and teal |
+
+## 7.3 Animation
+
+Prioritise:
+- Fluid movement.
+- Readable attack animations.
+- Distinct dodge and hit reactions.
+- Boss phase animations.
+- Environmental effects.
+- Cinematic transitions.
+
+## 7.4 Visual Effects
+
+Use effects purposefully:
+- Dust and debris.
+- Fire and embers.
+- Magical particles.
+- Water and waves.
+- Atmospheric fog.
+- Impact flashes.
+- Screen shake and hit-stop.
+
+Effects must not obscure gameplay readability.
+
+---
+
+# 8. Audio and Presentation
+
+## 8.1 Music
+
+The existing game already uses procedural Web Audio music and chapter-specific themes.
+
+The redesign should preserve distinct musical identities for:
+- Troy.
+- Cyclops island.
+- Aeolia.
+- Circe's island.
+- The Underworld.
+- The Sirens and straits.
+- Ithaca.
+
+## 8.2 Sound Effects
+
+Important sound categories:
+- Sword impacts.
+- Enemy attacks.
+- Footsteps.
+- Environmental ambience.
+- Magic and potion effects.
+- Ship and storm sounds.
+- Boss introductions.
+- UI feedback.
+
+## 8.3 Voice and Dialogue
+
+The existing project has prerecorded dialogue clips, Android native TTS fallback and browser SpeechSynthesis fallback.
+
+The redesign should improve dialogue pacing and presentation while retaining appropriate fallback behaviour.
+
+---
+
+# 9. User Interface and Controls
+
+## 9.1 UI Principles
+
+The interface should be consistent, readable and unobtrusive.
+
+Important components:
+- Health display.
+- Current objective.
+- Interaction prompt.
+- Contextual tutorial.
+- Equipment indicator.
+- Boss health and phase indicator.
+- Progress feedback.
+- Dialogue and choice presentation.
+
+## 9.2 Controls
+
+Support:
+- Keyboard.
+- Mouse and pointer.
+- Touch.
+- Android virtual controls.
+
+The existing game uses a virtual joystick and contextual ACT/BOW buttons. The redesigned controls should retain this general approach while becoming more consistent.
+
+## 9.3 Control Consistency
+
+The same basic actions should work consistently between chapters.
+
+Chapter-specific mechanics can add contextual actions, but should not make the player relearn fundamental controls in every section.
+
+---
+
+# 10. Narrative Systems
+
+## 10.1 Hubris
+
+Hubris is an important existing progression variable.
+
+The existing game stores hubris and uses it to influence the Chapter VI ending, with a threshold of four.
+
+The redesign should preserve this system and make its sources and consequences more understandable.
+
+Potential influences:
+- Boasting.
+- Unnecessary aggression.
+- Leadership decisions.
+- Reactions to warnings.
+- Important story choices.
+
+Hubris should not simply be a morality score. It represents Odysseus's relationship with pride, glory and restraint.
+
+## 10.2 Crew Relationships
+
+Proposed expansion:
+- Crew morale.
+- Trust.
+- Important dialogue variations.
+- Reactions to difficult decisions.
+- Consequences of the losses in Chapter V.
+
+Keep the system manageable rather than implementing an extensive individual relationship simulator.
+
+## 10.3 Narrative Continuity
+
+Important events must remain consistent across chapters.
+
+Examples:
+- Polyphemus's curse establishes the consequences of Odysseus's pride.
+- Aeolus's bag explains the detour to Circe's island.
+- Circe directs Odysseus to Tiresias.
+- Tiresias warns about the cattle of the Sun.
+- Scylla takes six crewmen.
+- Odysseus returns to Ithaca and confronts the suitors.
+
+New gameplay additions should strengthen these events rather than contradict them.
+
+---
+
+# 11. Technical Architecture
+
+## 11.1 Existing Architecture
+
+The verified v1.0.0 project uses a custom JavaScript Canvas 2D engine.
+
+Important existing files:
+
+| File | Responsibility |
+|---|---|
+| `index.html` | UI and Canvas |
+| `js/main.js` | Chapter registry, routing and screens |
+| `js/engine.js` | Game loop, input, camera and save system |
+| `js/scenefw.js` | Shared chapter framework |
+| `js/stick.js` | Virtual joystick and action controls |
+| `js/ui.js` | Dialogue, HUD, choices and interface |
+| `js/art.js` | Procedural Canvas artwork |
+| `js/fx.js` | Atmospheric effects |
+| `js/audio.js` | Music, ambience and sound effects |
+| `js/voice.js` | Dialogue audio and speech fallbacks |
+| `js/gear.js` | Equipment and gear |
+| `js/combat.js` | Combat and cinematic systems |
+| `scenes/` | Individual chapter implementations |
+
+## 11.2 Android
+
+The existing Android version uses a Java WebView shell.
+
+It supports:
+- Local bundled assets.
+- JavaScript execution.
+- DOM storage.
+- Android text-to-speech integration.
+- Full-screen presentation.
+- Pause and resume handling.
+
+Root project files and Android-packaged copies must be kept synchronised when assets are updated.
+
+## 11.3 PWA
+
+The existing project also includes a service worker and offline-first web architecture.
+
+Voice audio caching needs particular attention because the current service worker does not precache all voice MP3 files.
+
+## 11.4 Proposed Architecture Improvements
+
+Before major implementation, establish:
+
+1. A consistent shared input system.
+2. A unified objective and tutorial framework.
+3. A consistent checkpoint and recovery system.
+4. Reusable combat and enemy behaviour.
+5. A consistent equipment and ability framework.
+6. A persistent narrative state for choices and consequences.
+7. A reliable asset synchronisation process for Android and Web.
+8. Improved offline asset caching.
+
+These are proposed engineering improvements, not claims about existing functionality.
+
+---
+
+# 12. Known Technical Issues and Audit Notes
+
+The existing v1.0.0 audit identified several areas requiring attention.
+
+| Area | Finding |
+|---|---|
+| Chapter I input | Pointer-drag movement may calculate movement inconsistently |
+| Chapter I stealth | Drag movement does not increase noise consistently |
+| Chapter II interaction | Any canvas tap can resolve a crew warning event |
+| Input handling | Pointer cancellation may leave scene-specific hold states uncleared |
+| Dialogue | Touch controls remain interactive during some dialogue sequences |
+| UI | Objective and tutorial presentation differs across chapters |
+| Recovery | Failure and checkpoint behaviour differs between chapters |
+| PWA | Voice MP3 files are not guaranteed to be available offline on first run |
+| Documentation | `PROJECT_OVERVIEW.txt` is outdated regarding audio architecture |
+| Gamepad | Gamepad support is mentioned in documentation but was not found in the inspected engine code |
+
+These should be investigated and prioritised before or during the relevant implementation stages.
+
+---
+
+# 13. Development Roadmap
+
+Implementation should be incremental. Avoid redesigning every chapter simultaneously.
+
+## Phase 1 — Technical Foundation
+
+- Complete the technical audit.
+- Review all chapter source files.
+- Standardise input handling.
+- Establish a unified UI and objective system.
+- Establish checkpoint and recovery rules.
+- Verify Android and Web asset synchronisation.
+- Confirm the build and release process.
+
+## Phase 2 — Shared Gameplay Systems
+
+Implement and test:
+- Movement and traversal.
+- Combat and dodge.
+- Parry and combo mechanics.
+- Enemy behaviour.
+- Boss encounter framework.
+- Equipment and progression.
+- Narrative state and hubris.
+- Crew relationship state.
+- Save and checkpoint systems.
+
+## Phase 3 — Chapter Implementation
+
+Recommended sequence:
+
+1. Prologue — movement and combat foundation.
+2. Chapter I — stealth and boss encounter.
+3. Chapter II — sailing and crew systems.
+4. Chapter III — alchemy and magical trials.
+5. Chapter IV — puzzles and supernatural encounters.
+6. Chapter V — rhythm and navigation systems.
+7. Chapter VI — stealth, final combat and endings.
+
+## Phase 4 — Visual and Audio Polish
+
+- Improve environment artwork.
+- Replace or refine placeholder procedural assets.
+- Improve character animation.
+- Improve effects and transitions.
+- Refine music and dialogue presentation.
+- Improve UI consistency.
+
+## Phase 5 — Testing
+
+Test every chapter for:
+- Gameplay progression.
+- Combat balance.
+- Input responsiveness.
+- Dialogue and story continuity.
+- Save and recovery behaviour.
+- Performance.
+- Android compatibility.
+- Browser compatibility.
+- Offline behaviour.
+
+## Phase 6 — Release
+
+- Sync root and Android assets.
+- Verify the final build.
+- Test the APK on actual Android devices.
+- Test the browser version.
+- Update documentation.
+- Prepare release notes and version tagging.
+
+---
+
+# 14. Design Rules and Constraints
+
+The following rules should guide future development.
+
+1. Preserve the core narrative events of Homer's Odyssey.
+2. Do not add a boss simply to make every chapter contain one.
+3. Every chapter must have a distinct gameplay identity.
+4. Combat should be challenging but readable and fair.
+5. Equipment progression should matter without requiring a huge skill tree.
+6. Player choices should have understandable consequences.
+7. Canonical events should not be removed merely to make gameplay easier.
+8. The six crew losses to Scylla remain a fixed narrative outcome.
+9. Failure should avoid unnecessary repetition of completed content.
+10. Android and Web versions must remain consistent.
+11. All major redesigns must be tested on both platforms.
+12. New mechanics should be discussed and approved before implementation.
+
+---
+
+# 15. Current Project Status
+
+**Existing foundation:** ODYSSEY v1.0.0, based on a custom JavaScript Canvas 2D engine with Android WebView support.
+
+**Design work completed:** All seven playable sections have an approved high-level redesign direction.
+
+**Implementation status:** The redesign has not yet been implemented.
+
+**Next milestone:** Complete the shared gameplay and technical architecture specification, then begin implementation with the Prologue as the foundation for subsequent chapters.
+
+---
+
+# 16. Final Vision
+
+ODYSSEY should feel like one continuous mythological journey rather than seven unrelated mini-games.
+
+Troy introduces the warrior. Polyphemus tests his cleverness. Aeolus tests his leadership. Circe tests his preparation. The Underworld confronts him with mortality and pride. The Sirens and Scylla test his ability to endure loss. Ithaca finally tests whether the man who returns is still worthy of the home he fought so hard to reach.
+
+The central theme is not simply the journey home.
+
+It is the transformation of Odysseus along the way.
+
+**The journey makes the legend. The choices define the king.**

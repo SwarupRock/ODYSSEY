@@ -1,0 +1,405 @@
+ODYSSEY — STAGE 4D FULL CHAPTER REGRESSION AUDIT
+==================================================
+
+Audit date: 2026-11-12
+Branch: integration/team-merge-2026-11-12
+HEAD: ff711bcc9d04aada03d58de6e08aa71aa4b97010
+Baseline expected by request: ff711bcc9d04aada03d58de6e08aa71aa4b97010
+
+SCOPE AND RESTRICTIONS
+----------------------
+This was a read-only regression audit following Stages 4B, 4B.1, and 4C.
+The authoritative project documents, all seven chapter scenes, shared input
+and lifecycle modules, styles, and root/Android packaged JavaScript were
+inspected.
+
+No gameplay source, styles, assets, configuration, save data, APK, commit,
+or branch state was modified. The only created file is this requested audit
+report. No fixes were applied.
+
+EXECUTIVE SUMMARY
+-----------------
+The integration branch and expected HEAD are correct. The seven scene classes
+remain present, JavaScript syntax is valid, and the audited root/Android scene
+and shared runtime files are byte-identical except for a trailing-newline-only
+difference in js/updater.js.
+
+The shared keyboard and touch routing is broadly consistent with the approved
+mapping. Chapter I and VI retain shared MovementController running/dodge
+integration. Chapter III remains contextual and does not enable the generic
+combat cluster. Chapter V keeps Space/Enter rhythm strikes separate from W/S
+steering, and its cancellation path releases held notes.
+
+Three confirmed medium findings require follow-up:
+
+1. Bow visibility is owned globally by Gear ownership in main.js and is not
+   constrained to scenes/phases that support bow use. A replaying player who
+   owns a bow can see the BOW button in unsupported exploration chapters and
+   non-combat phases.
+2. Chapter IV and Chapter V use lowercase engine.w/engine.h in VFX and
+   coordinate calculations, while Engine defines uppercase W/H. This causes
+   undefined/NaN visual coordinates in affected encounter effects.
+3. Chapter V's strait collision effects use lowercase dimensions, so the
+   six-loss progression is recorded but the associated effect placement is
+   unreliable.
+
+The third item is grouped with the second root cause in the severity count
+below; it is listed separately in the chapter findings because it affects a
+different gameplay section.
+
+FINDING COUNTS
+--------------
+Critical:       0
+High:           0
+Medium:         3
+Low:            0
+Informational:  3
+
+SEVERITY AND CLASSIFICATION
+---------------------------
+
+M1 — MEDIUM — CONFIRMED DEFECT
+File/function: js/main.js:214-218 beginScene; js/stick.js:180-190
+Description:
+Stick.refreshBow() is called globally when any chapter begins and only checks
+Gear.kit().bow.power. It does not check whether the active scene or phase
+supports bow use. Consequently an owned bow can remain visible during
+unsupported chapters and exploration/non-combat phases. Chapter I's stealth
+phase is an explicit example: its scene-level refresh occurs only when the
+fight starts, but beginScene has already refreshed the global button.
+Impact:
+The UI advertises an action outside its approved availability rules. Chapter
+III, IV, and V do not implement a bow action handler; Chapter VI also leaves
+the bow button visible after combat victory. Keyboard B is ignored or may
+remain accepted by a scene handler even when the phase is no longer combat.
+Classification: Confirmed defect.
+
+M2 — MEDIUM — CONFIRMED DEFECT
+File/function: scenes/ch4_underworld.js:80,98,146; Engine exposes W/H in
+js/engine.js:13-16 and resize()
+Description:
+Chapter IV uses this.engine.w instead of this.engine.W for ghost and loot
+effect coordinates. The values are undefined in the current Engine.
+Impact:
+Ghost spawn and Achilles reward VFX receive invalid x coordinates. Narrative
+progression and Save completion still execute, but the affected visuals are
+not reliable.
+Classification: Confirmed defect.
+
+M3 — MEDIUM — CONFIRMED DEFECT
+File/function: scenes/ch5_straits.js:121,272; Engine exposes W/H in
+js/engine.js:13-16 and resize()
+Description:
+Chapter V rhythm judgment effects and strait collision effects use lowercase
+engine.w/engine.h. The six-loss value is explicitly saved as lost: 6 in
+straitVictory(), but effect coordinates can become undefined/NaN.
+Impact:
+Rhythm feedback and Scylla/Charybdis collision VFX may be misplaced or absent.
+The approved six-crew-loss progression itself is preserved.
+Classification: Confirmed defect.
+
+I1 — INFORMATIONAL — DESIGN DISCREPANCY
+File/function: scenes/prologue.js:1-110
+Description:
+The Prologue contains the cinematic march, dialogue, and a short follow walk.
+It has no optional Trojan Captain encounter or introductory combat routing,
+although the GDD describes those as proposed Prologue gameplay.
+Impact:
+The section does not currently provide the complete GDD tutorial/combat
+target. This is not a regression introduced by Stages 4B-4C and should not be
+treated as an input-lifecycle failure.
+Classification: Design discrepancy / existing limitation.
+
+I2 — INFORMATIONAL — EXISTING LIMITATION
+File/function: js/updater.js root and Android packaged copy
+Description:
+The only unexpected parity mismatch among the audited JavaScript files is a
+single trailing newline difference. Content and behavior are identical.
+Classification: Existing packaging limitation; no functional impact.
+
+I3 — INFORMATIONAL — UNABLE TO VERIFY
+File/function: all chapter runtime paths
+Description:
+Physical Android WebView execution was not performed, and the browser was
+blocked by the active mandatory update gate. Browser DOM/lifecycle state was
+inspectable, but full chapter traversal and physical touch gestures were not
+available.
+Classification: Unable to verify.
+
+CHAPTER-BY-CHAPTER FINDINGS
+---------------------------
+
+PROLOGUE — FALL OF TROY
+Status: SOURCE-CONSISTENT, RUNTIME UNVERIFIED
+
+- Fresh-game routing is in js/main.js:178-204. A fresh prologue uses FilmIntro;
+  the callback marks introSeen, saves it, and begins PrologueScene.
+- PrologueScene transitions from intro dialogue to march, then follow movement
+  in scenes/prologue.js:21-63 and :70-110.
+- Dialogue suppression is provided by main.js and Dialogue.active; touch
+  controls are disabled while dialogue is open by Stick.setInteractive(false).
+- The follow section uses axisX() and swipe movement. No combat handler or
+  imported Chapter I/VI combat cluster is inherited.
+- Returning home calls current cleanup, engine.setScene(null), Dialogue.hide,
+  Choices.hide, HUD/Mech cleanup, and screen navigation in main.js:66-90.
+- Hubris is saved through finish({ hubris: 1 }) at prologue.js:61.
+- The optional Trojan Captain and combat tutorial described in the GDD are
+  absent. This is the informational design discrepancy I1.
+- Browser runtime: not chapter-tested because the mandatory updater lock was
+  active. Android: source inspection only.
+
+CHAPTER I — POLYPHEMUS'S CAVE
+Status: SOURCE-CONSISTENT WITH CONFIRMED BOW-VISIBILITY RISK
+
+- Stealth movement and noise accumulation are direct, walk-only logic in
+  ch1_cyclops.js:61-107. Drag movement is handled at :53-58 and increases
+  noise.
+- Combat begins in story() at :128-176. The shared controller is configured
+  with run and dodge capabilities at :24-32 and receives Shift in the fight
+  movement path at :326-329.
+- C/K routes to dodge, R to the distinct dash action, F/L/I/U/Space/B to
+  supported fight handlers at :679-691. onActionKey() rejects all actions
+  unless state === "fight".
+- Club, charge, and boulder paths check controller invulnerability before
+  resolving damage at :348-361 and :408. Missed expose/QTE damage goes through
+  resolveBossHit() and remains intentionally unavoidable as documented.
+- Armour ordering uses hitPlayer() before damagePlayer() at :466-467.
+- Fight visibility is explicit: combat mode and dodge appear at :132-134 and
+  are removed by cleanup/victory at :178-179 and :733.
+- Stealth does not enable the combat cluster or dodge. The global bow refresh
+  can still expose BOW if a replaying save owns a bow (M1).
+- Death/retry is failLoop() at :470-488; it resets HP, position, boulders,
+  boss state, and returns to fight. Dialogue remains input-suppressed.
+- Browser runtime: not exercised. Android: parity/source inspection only.
+
+CHAPTER II — BAG OF WINDS
+Status: SOURCE-CONSISTENT, RUNTIME UNVERIFIED
+
+- Wind trim, drift, integrity, progress, temptation, squalls, calm events,
+  and disaster reset are implemented in ch2_winds.js:21-170.
+- Sailing uses engine.axisX() plus screen-side holdDir. Space/Enter invokes
+  the crew warning through onActionKey() at :173-180; no generic combat
+  action handler is present.
+- Disaster sets down state, runs dialogue, restores integrity, reduces
+  progress, clears events, and resumes the chapter at :183-203.
+- Victory sets won, runs dialogue, saves hubris, and transitions at :205-216.
+- Dialogue and scene reset paths prevent held touch/keyboard input from
+  crossing transitions.
+- A globally owned bow may be visible even though this scene has no bow
+  handler (M1).
+- Browser runtime: not exercised. Android: parity/source inspection only.
+
+CHAPTER III — CIRCE'S ISLAND
+Status: SOURCE-CONSISTENT CONTEXTUAL GAMEPLAY
+
+- Exploration, ingredient collection, beast states, potion inventory, pig
+  curing, and bench interaction are in ch3_circe.js:35-219.
+- Potion-making is functionally represented: selecting two ingredients,
+  sorting the recipe key, rejecting invalid pairs with inventory restoration,
+  and assigning a valid potion are implemented at :266-337.
+- Clarifying Draught is recipe 0-1 and curing consumes the potion at :184-204.
+- Eurylochus is explicitly included in PIG_NAMES at :25.
+- Generic combat mode is disabled in initState and cleanup at :71-75.
+- onActionKey() accepts only Space/Enter, with Escape/Space/Enter used to
+  close the bench at :219-229. F/R/L/I/U/C/K are not handled by this scene.
+- There is no shared dodge or MovementController integration.
+- Circe rewards and finish transition are implemented at :330-353.
+- M1 still applies to global BOW visibility if the player owns one, despite
+  this scene's lack of a bow handler.
+- Browser runtime: not exercised. Android: parity/source inspection only.
+
+CHAPTER IV — THE UNDERWORLD
+Status: PROGRESSION SOURCE-CONSISTENT; VISUAL DEFECT M2
+
+- Exploration, ghost encounters, Tiresias dialogue, choices, hubris flag,
+  gear rewards, finish, and transition are implemented in
+  ch4_underworld.js:22-160.
+- Ghost order is Elpenor, Anticleia, Agamemnon, Achilles. The Tiresias warning
+  covers the Sun cattle and the cost of the voyage.
+- Choices feed hubrisFlag and finish({ hubris }) without creating an eighth
+  playable section. startNext() advances to the existing next chapter.
+- Movement is contextual hold-to-walk; no generic combat cluster or dodge is
+  enabled.
+- M2 affects ghost/reward VFX coordinates because engine.w is undefined.
+- M1 applies to global BOW visibility if the player owns one.
+- Browser runtime: not exercised. Android: parity/source inspection only.
+
+CHAPTER V — SIRENS, SCYLLA & CHARYBDIS
+Status: INPUT/PROGRESSION SOURCE-CONSISTENT; VISUAL DEFECT M3
+
+- Siren setup, note spawning, hold notes, judgment, resistance, failure loop,
+  and victory are implemented at ch5_straits.js:31-228.
+- Space/Enter and canvas tap route to sirenStrike(); W/S remain steering via
+  axisY() in the strait phase. Release and cancellation handling is explicit
+  at :348-367.
+- Siren failure restarts the verse, not the chapter. Victory transitions to
+  the strait without changing the six-loss design.
+- straitVictory() records lost = 6 at :291-301, preserving the approved
+  unavoidable crew-loss requirement.
+- M3 affects rhythm/strait effect coordinates through engine.w/engine.h.
+- M1 applies to global BOW visibility even though this chapter has no bow
+  handler.
+- Browser runtime: not exercised. Android: parity/source inspection only.
+
+CHAPTER VI — RETURN TO ITHACA
+Status: SOURCE-CONSISTENT WITH PHASE-VISIBILITY RISK
+
+- Disguise, bow award, volley, suitor waves, duel, ending dialogue, and
+  hubris-based completion are implemented in ch6_ithaca.js.
+- MovementController run/dodge integration is configured at :26-35 and
+  used by volley, wave, and duel paths through updatePlayerMovement() at
+  :178-188. Volley preserves its additional movement contribution at
+  :114-120 with the same 1.6 multiplier.
+- C/K shared dodge, R dash, F guard/parry, L spear, I spin, U uppercut,
+  Space slash, and B bow are routed at :533-543.
+- Damage paths check shared invulnerability before damage at :152, :235, and
+  :391. damage() calls hitPlayer() first at the chapter's damage helper,
+  preserving armour absorption ordering.
+- Combat controls are enabled for volley at :77-80 and hidden by cleanup and
+  victory at :473-474 and :550. Dodge visibility follows phase at :174-177.
+- The bow button is not hidden by setCombatMode(false), and onActionKey("bow")
+  does not independently guard against phase === "won". This is covered by
+  M1 as an unsupported post-combat action-availability risk.
+- Browser runtime: not exercised. Android: parity/source inspection only.
+
+CROSS-CHAPTER KEYBOARD FINDINGS
+--------------------------------
+
+Approved mapping inspection:
+- A/D and arrows are continuous axis movement in Engine.axisX().
+- Shift is polled only by the supported Chapter I/VI controller movement
+  paths; it is not an action dispatch.
+- Space/Enter remain scene-specific contextual/light actions.
+- C/K are globally routed to "dodge" in main.js:367-371.
+- F/R/L/I/U are passed to scene-specific handlers.
+- B is globally routed to "bow" at main.js:363-366.
+- J remains isolated to MovementTestScene.
+- W/S remain axis input and Chapter V uses axisY() for steering.
+
+No source-level collision was found between A/D movement and dodge, Shift and
+dash/dodge, K and spin, or W/S steering and Chapter V rhythm strikes.
+Chapter-specific handlers generally guard unsupported actions. Bow availability
+is the exception documented as M1.
+
+CROSS-CHAPTER TOUCH AND LIFECYCLE FINDINGS
+------------------------------------------
+
+- Stick uses explicit interactive gating, per-button pointer ownership, and
+  joystick pointer ownership in js/stick.js:12-239.
+- Dialogue.show() disables touch interaction and resets held controls;
+  Dialogue.hide() restores interaction only while Stick.inGame is true
+  (js/ui.js:35-57 and :94-103).
+- Engine.resetInput() clears keys, canvas pointer state, joystick axes, and
+  broadcasts an odyssey-input-reset event (js/engine.js:114-123).
+- Engine.setScene() cancels the outgoing scene before resetting input
+  (js/engine.js:100-112).
+- Window blur and document visibility loss reset the touch rig.
+- Pointercancel/pointerleave paths clear joystick/button state and ChapterScene
+  input holds. Chapter V has a specialized cancellation path that does not
+  judge an interrupted hold as a miss.
+- Screen/update-lock state disables touch controls through setInGame(false).
+  Browser inspection confirmed the active mandatory update lock rendered the
+  gameplay controls with aria-disabled=true and pointer-events:none.
+- Full physical pointer traversal was unavailable because the browser was
+  update-locked and no Android runtime was used. Therefore lifecycle behavior
+  is source-verified plus limited DOM-verified, not full runtime-proven.
+
+COMBAT, MOVEMENT, DODGE, ARMOUR, AND DAMAGE ROUTING
+---------------------------------------------------
+
+- MovementController remains shared by Chapter I fight and Chapter VI combat
+  phases. Run multiplier and dodge timing were not changed in Stage 4C.
+- Chapter I and VI damage checks consult controller invulnerability before
+  damage, while armour is applied through ChapterScene.hitPlayer().
+- Chapter I missed expose/QTE damage remains intentionally outside the dodge
+  gate.
+- Chapter III has no shared dodge and remains contextual.
+- Chapter V has no combat damage system; its rhythm and strait systems remain
+  chapter-specific.
+- Stamina remains standalone, byte-identical, unloaded, and unintegrated.
+- No unsupported heavy attack handler was added.
+- The audit found no source-level regression in the approved dodge timings or
+  armour ordering. Runtime confirmation remains pending.
+
+ROOT/ANDROID PARITY
+--------------------
+
+Compared:
+- js/engine.js
+- js/scenefw.js
+- js/stick.js
+- js/ui.js
+- js/main.js
+- js/movement.js
+- js/stamina.js
+- js/combat.js
+- js/gear.js
+- all seven scenes/*.js files
+
+Results:
+- All listed shared files and all seven chapter scene files are byte-identical
+  between root and Android packaged assets.
+- js/updater.js differs only by one trailing newline at EOF. No content or
+  behavioral difference was found.
+- Known baseline differences in art.js and sw.js were not overwritten or
+  treated as Stage 4D defects.
+
+TESTS PERFORMED
+---------------
+
+1. Repository state:
+   - Branch and HEAD matched the requested values.
+   - Existing uncommitted Stage 4B/4B.1/4C work was preserved.
+
+2. Static syntax:
+   - `node --check` passed for every root js/*.js and scenes/*.js file.
+
+3. Parity:
+   - Byte comparisons passed for all audited shared modules and seven scenes.
+   - The updater trailing-newline-only mismatch was recorded.
+
+4. Browser:
+   - Existing local preview page was inspected.
+   - The mandatory updater gate was active: v1.2.1 / Build 3 required.
+   - Gameplay navigation buttons were disabled and touch controls were
+     non-interactive.
+   - Full chapter runtime and console-error traversal were not possible.
+
+5. Source lifecycle/input review:
+   - All global keyboard, pointer, touch, scene replacement, dialogue,
+     visibility, and reset routes listed above were inspected.
+
+TESTS NOT PERFORMED
+-------------------
+
+- Full browser playthrough of all seven sections: unavailable because the
+  active mandatory update gate blocked chapter launch; no bypass was used.
+- Physical Android testing: not performed.
+- APK build: intentionally not performed.
+- Automated gameplay simulation for every chapter: not run because no
+  repository test suite or isolated scene fixture was available and production
+  files were not to be modified.
+- Browser console-error capture during chapter play: unavailable because the
+  update gate prevented chapter execution.
+
+RECOMMENDED REMEDIATION ORDER
+-----------------------------
+
+1. Correct lowercase engine.w/engine.h references in Chapter IV and V, then
+   validate VFX coordinates and Android parity.
+2. Make bow visibility and bow dispatch phase/scene-owned rather than global
+   ownership-only; explicitly hide it outside supported combat phases.
+3. Perform browser chapter traversal after resolving the mandatory update test
+   environment, including dialogue, scene replacement, touch cancellation,
+   dodge, run, armour, and Chapter V rhythm checks.
+4. Perform native Android WebView lifecycle and multi-touch validation.
+5. Separately decide whether the GDD's optional Prologue Captain/tutorial
+   content is in scope; do not silently implement it as a regression fix.
+6. Normalize the updater EOF newline only if packaging policy requires exact
+   byte parity; it has no runtime priority.
+
+FINAL PRODUCTION-MODIFICATION STATEMENT
+---------------------------------------
+No production source code, styles, assets, configuration, save data, APK,
+commit, or push was changed or performed during this audit. The only new file
+is STAGE_4D_REGRESSION_AUDIT.txt, created at the user's explicit request.
